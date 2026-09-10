@@ -1,0 +1,16 @@
+.env
+.env.backup
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+
+/application/config/config.php
+/application/config/database.php
+/application/logs
+/vendor
+/upload/temp
