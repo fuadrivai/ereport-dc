@@ -119,9 +119,16 @@ function generate_menu($level, $is_wali = false)
 	$menu = '<li><a href="' . base_url() . '"><i class="pe-7s-home"></i><p>Home</p></a></li>';
 	if ($level == "admin") {
 		$menu .= '
-					<li><a href="' . base_url() . 'data_guru"><i class="pe-7s-users"></i><p>Master Guru</p></a></li>
-					<li><a href="' . base_url() . 'data_siswa"><i class="pe-7s-smile"></i><p>Master Siswa</p></a></li>
-					<li><a href="' . base_url() . 'data_kelas"><i class="pe-7s-global"></i><p>Master Kelas</p></a></li>
+					<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-notebook"></i><p>Master</p></a>
+						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
+							<li><a href="' . base_url() . 'data_guru"><i class="pe-7s-users"></i>Master Guru</a></li>
+							<li><a href="' . base_url() . 'data_siswa"><i class="pe-7s-smile"></i>Master Siswa</a></li>
+							<li><a href="' . base_url() . 'data_kelas"><i class="pe-7s-global"></i>Master Kelas</a></li>
+							<li><a href="' . base_url() . 'data_mapel"><i class="pe-7s-notebook"></i>Master Mapel</a></li>
+							<li><a href="' . base_url() . 'data_ekstra"><i class="pe-7s-ball"></i>Master Ekstra</a></li>
+						</ul>
+					</li>
 					<li class="dropdown">
                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-notebook"></i><p>Master P5</p></a>
                         <ul class="dropdown-menu" role="menu" style="
@@ -138,20 +145,35 @@ function generate_menu($level, $is_wali = false)
                         background-color: #1F77D0;
                     ">
                     <li><a href="' . base_url() . 'keterampilan"><i class="pe-7s-display2"></i>SET Keterampilan</a></li>
-                    <li><a href="' . base_url() . 'keterampilan/view_set_kelas"><i class="pe-7s-display2"></i>SET KELAS</a></li>
+					<li><a href="' . base_url() . 'keterampilan/view_set_kelas"><i class="pe-7s-display2"></i>SET KELAS</a></li>
                         </ul>
                     </li>
-					<li><a href="' . base_url() . 'data_mapel"><i class="pe-7s-notebook"></i><p>Master Mapel</p></a></li>
-					<li><a href="' . base_url() . 'data_ekstra"><i class="pe-7s-ball"></i><p>Master Ekstra</p></a></li>
 					<li><a href="' . base_url() . 'backup_db"><i class="pe-7s-server"></i><p>Backup Data</p></a></li>
 					<li><a href="' . base_url() . 'kehadiran/kelas"><i class="pe-7s-bookmarks"></i><p>Attendance</p></a></li>
 					<li><a href="' . base_url() . 'tahun"><i class="pe-7s-date"></i><p>Set Tahun Aktif</p></a></li>
-					<li><a href="' . base_url() . 'set_kelas"><i class="pe-7s-add-user"></i><p>Set Kelas</p></a></li>
-					<li><a href="' . base_url() . 'set_kelas_reguler"><i class="pe-7s-add-user"></i><p>Set Kelas Reguler</p></a></li>
+					<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-add-user"></i><p>Kelas</p></a>
+						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
+							<li><a href="' . base_url() . 'set_kelas"><i class="pe-7s-add-user"></i>Set Kelas</a></li>
+							<li><a href="' . base_url() . 'set_kelas_reguler"><i class="pe-7s-add-user"></i>Set Kelas Reguler</a></li>
+						</ul>
+					</li>
 					<li><a href="' . base_url() . 'set_mapel"><i class="pe-7s-display2"></i><p>Set Mapel</p></a></li>
-					<li><a href="' . base_url() . 'set_walikelas"><i class="pe-7s-portfolio"></i><p>Set Wali Kelas</p></a></li>
 					<li><a href="' . base_url() . 'data_monthly"><i class="pe-7s-display2"></i><p>Monthly Report</p></a></li>
-					<li><a href="' . base_url() . 'set_walikelas_reguler"><i class="pe-7s-portfolio"></i><p>Set Wali Kelas Reguler</p></a></li>
+					<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-portfolio"></i><p>Report Schedule</p></a>
+						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
+							<li><a href="' . base_url() . 'schedule/therapist"><i class="pe-7s-portfolio"></i>Therapist</a></li>
+							<li><a href="' . base_url() . 'schedule/report"><i class="pe-7s-portfolio"></i>Schedule</a></li>
+						</ul>
+					</li>
+					<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-portfolio"></i><p>Wali Kelas</p></a>
+						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
+							<li><a href="' . base_url() . 'set_walikelas"><i class="pe-7s-portfolio"></i>Wali Kelas</a></li>
+							<li><a href="' . base_url() . 'set_walikelas_reguler"><i class="pe-7s-portfolio"></i>Wali Kelas Reguler</a></li>
+						</ul>
+					</li>
 					<li><a href="' . base_url() . 'pengumuman"><i class="pe-7s-bell"></i><p>Pengumuman</p></a></li>
 					<li><a href="' . base_url() . 'home/ubah_password"><i class="pe-7s-unlock"></i><p>Ubah Password</p></a></li>
 					';
