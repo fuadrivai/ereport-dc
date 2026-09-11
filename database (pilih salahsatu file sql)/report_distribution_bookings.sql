@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `report_distribution_bookings` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `booking_code` VARCHAR(32) NOT NULL,
+    `report_distribution_id` INT NOT NULL,
+    `session_id` INT NOT NULL,
+    `student_id` INT NOT NULL,
+    `booking_type` ENUM('THERAPY', 'NON_THERAPY') NOT NULL,
+    `therapist_id` INT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'BOOKED',
+    `booked_at` DATETIME NOT NULL,
+    `cancelled_at` DATETIME NULL,
+    `completed_at` DATETIME NULL,
+    `notes` TEXT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_report_distribution_booking_code` (`booking_code`),
+    UNIQUE KEY `uq_report_distribution_student_booking` (`report_distribution_id`, `student_id`),
+    KEY `idx_report_distribution_booking_session_status` (`session_id`, `booking_type`, `status`),
+    KEY `idx_report_distribution_booking_student` (`student_id`),
+    KEY `idx_report_distribution_booking_therapist` (`therapist_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;

@@ -165,6 +165,7 @@ function generate_menu($level, $is_wali = false)
 						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
 							<li><a href="' . base_url() . 'schedule/therapist"><i class="pe-7s-portfolio"></i>Therapist</a></li>
 							<li><a href="' . base_url() . 'schedule/report"><i class="pe-7s-portfolio"></i>Schedule</a></li>
+							<li><a href="' . base_url() . 'student_therapist"><i class="pe-7s-users"></i>Student Therapist</a></li>
 						</ul>
 					</li>
 					<li class="dropdown">

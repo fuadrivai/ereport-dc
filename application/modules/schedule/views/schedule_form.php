@@ -4,92 +4,109 @@
     </div>
     <div class="content">
         <div class="row">
-            <div class="col-md-7">
-                <form class="form-horizontal" method="post" action="<?= base_url($url . '/simpan_schedule') ?>"
-                    id="<?= $nama_form ?>">
+            <div class="col-md-6">
+                <form method="post" action="<?= base_url($url . '/simpan_schedule') ?>" id="<?= $nama_form ?>"
+                    lang="en-GB">
                     <input type="hidden" name="_id" value="<?= html_escape($data['id']) ?>">
                     <input type="hidden" name="_mode" value="<?= html_escape($data['mode']) ?>">
 
                     <div class="form-group">
-                        <label for="title" class="col-sm-3 control-label">Title</label>
-                        <div class="col-sm-9"><input type="text" name="title" id="title" class="form-control"
-                                value="<?= html_escape($data['title']) ?>" required></div>
+                        <label for="title" class="control-label">Title</label>
+                        <input type="text" name="title" id="title" class="form-control"
+                            value="<?= html_escape($data['title']) ?>" required>
                     </div>
-                    <div class="form-group">
-                        <label for="tahun_id" class="col-sm-3 control-label">Tahun</label>
-                        <div class="col-sm-9">
-                            <select name="tahun_id" id="tahun_id" class="form-control" required>
-                                <option value="">Pilih Tahun</option>
-                                <?php foreach ($p_tahun as $tahun) { ?>
-                                <option value="<?= html_escape($tahun['id']) ?>"
-                                    <?= (string) $data['tahun_id'] === (string) $tahun['id'] ? 'selected' : '' ?>>
-                                    <?= html_escape($tahun['tahun']) ?></option>
-                                <?php } ?>
-                            </select>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="tahun_id" class="control-label">Tahun</label>
+                                <select name="tahun_id" id="tahun_id" class="form-control" required>
+                                    <option value="">Pilih Tahun</option>
+                                    <?php foreach ($p_tahun as $tahun) { ?>
+                                    <option value="<?= html_escape($tahun['id']) ?>"
+                                        <?= (string) $data['tahun_id'] === (string) $tahun['id'] ? 'selected' : '' ?>>
+                                        <?= html_escape($tahun['tahun']) ?></option>
+                                    <?php } ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="semester" class="control-label">Semester</label>
+                                <select name="semester" id="semester" class="form-control" required>
+                                    <option value="">Pilih Semester</option>
+                                    <option value="1" <?= $data['semester'] === '1' ? 'selected' : '' ?>>1</option>
+                                    <option value="2" <?= $data['semester'] === '2' ? 'selected' : '' ?>>2</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="semester" class="col-sm-3 control-label">Semester</label>
-                        <div class="col-sm-9">
-                            <select name="semester" id="semester" class="form-control" required>
-                                <option value="">Pilih Semester</option>
-                                <option value="1" <?= $data['semester'] === '1' ? 'selected' : '' ?>>1</option>
-                                <option value="2" <?= $data['semester'] === '2' ? 'selected' : '' ?>>2</option>
-                            </select>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="report_type" class="control-label">Report Type</label>
+                                <select name="report_type" id="report_type" class="form-control" required>
+                                    <option value="">Pilih Report Type</option>
+                                    <option value="MID" <?= $data['report_type'] === 'MID' ? 'selected' : '' ?>>MID
+                                    </option>
+                                    <option value="FINAL" <?= $data['report_type'] === 'FINAL' ? 'selected' : '' ?>>
+                                        FINAL
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="status" class="control-label">Status</label>
+                                <select name="status" id="status" class="form-control" required>
+                                    <option value="">Pilih Status</option>
+                                    <option value="DRAFT" <?= $data['status'] === 'DRAFT' ? 'selected' : '' ?>>DRAFT
+                                    </option>
+                                    <option value="PUBLISHED" <?= $data['status'] === 'PUBLISHED' ? 'selected' : '' ?>>
+                                        PUBLISHED
+                                    </option>
+                                    <option value="CLOSED" <?= $data['status'] === 'CLOSED' ? 'selected' : '' ?>>CLOSED
+                                    </option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="report_type" class="col-sm-3 control-label">Report Type</label>
-                        <div class="col-sm-9">
-                            <select name="report_type" id="report_type" class="form-control" required>
-                                <option value="">Pilih Report Type</option>
-                                <option value="Mid" <?= $data['report_type'] === 'Mid' ? 'selected' : '' ?>>Mid</option>
-                                <option value="Final" <?= $data['report_type'] === 'Final' ? 'selected' : '' ?>>Final
-                                </option>
-                            </select>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="booking_start_at" class="control-label">Start Date</label>
+                                <input type="datetime-local" name="booking_start_at" id="booking_start_at" lang="en-GB"
+                                    class="form-control"
+                                    value="<?= html_escape(substr(str_replace(' ', 'T', $data['booking_start_at']), 0, 16)) ?>"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="booking_end_at" class="control-label">End Date</label>
+                                <input type="datetime-local" name="booking_end_at" id="booking_end_at" lang="en-GB"
+                                    class="form-control"
+                                    value="<?= html_escape(substr(str_replace(' ', 'T', $data['booking_end_at']), 0, 16)) ?>"
+                                    required>
+                            </div>
                         </div>
                     </div>
+
                     <div class="form-group">
-                        <label for="status" class="col-sm-3 control-label">Status</label>
-                        <div class="col-sm-9">
-                            <select name="status" id="status" class="form-control" required>
-                                <option value="">Pilih Status</option>
-                                <option value="active" <?= $data['status'] === 'active' ? 'selected' : '' ?>>Active
-                                </option>
-                                <option value="inactive" <?= $data['status'] === 'inactive' ? 'selected' : '' ?>>
-                                    Inactive</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="booking_start_at" class="col-sm-3 control-label">Start Date</label>
-                        <div class="col-sm-9"><input type="datetime-local" name="booking_start_at" id="booking_start_at"
-                                class="form-control"
-                                value="<?= html_escape(substr(str_replace(' ', 'T', $data['booking_start_at']), 0, 16)) ?>"
-                                required></div>
-                    </div>
-                    <div class="form-group">
-                        <label for="booking_end_at" class="col-sm-3 control-label">End Date</label>
-                        <div class="col-sm-9"><input type="datetime-local" name="booking_end_at" id="booking_end_at"
-                                class="form-control"
-                                value="<?= html_escape(substr(str_replace(' ', 'T', $data['booking_end_at']), 0, 16)) ?>"
-                                required></div>
-                    </div>
-                    <div class="form-group">
-                        <label for="description" class="col-sm-3 control-label">Description</label>
-                        <div class="col-sm-9"><textarea name="description" id="description" class="form-control"
-                                rows="3" required><?= html_escape($data['description']) ?></textarea></div>
+                        <label for="description" class="control-label">Description</label>
+                        <textarea name="description" id="description" class="form-control" rows="3"
+                            required><?= html_escape($data['description']) ?></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                     <a href="<?= base_url($url . '/report') ?>" class="btn btn-default">Kembali</a>
                 </form>
             </div>
 
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <div class="panel panel-default">
                     <div class="panel-heading clearfix">
                         <strong>Report Distribution Dates</strong>
-                        <button type="button" class="btn btn-success btn-xs pull-right" data-toggle="modal"
+                        <button type="button" class="btn btn-success btn-xs pull-right btn-add-date" data-toggle="modal"
                             data-target="#modal_schedule_date" title="Add Schedule Date"
                             <?= empty($data['id']) ? 'disabled' : '' ?>>Add Schedule Date</button>
                     </div>
@@ -110,11 +127,17 @@
                                 <?php foreach ($p_dates as $date) { ?>
                                 <tr>
                                     <td colspan="4">
-                                        <strong><?= html_escape($date['distribution_date']) ?></strong>
+                                        <strong><?= html_escape(date('d F Y', strtotime($date['distribution_date']))) ?></strong>
                                         <span class="text-muted">&middot; <?= html_escape($date['label']) ?></span>
                                         <span
                                             class="label label-<?= (int) $date['is_active'] === 1 ? 'success' : 'default' ?>">
                                             <?= (int) $date['is_active'] === 1 ? 'Active' : 'Inactive' ?></span>
+                                        <button type="button" class="btn btn-xs btn-primary btn-edit-date"
+                                            data-toggle="modal" data-target="#modal_schedule_date"
+                                            data-id="<?= html_escape($date['id']) ?>"
+                                            data-date="<?= html_escape($date['distribution_date']) ?>"
+                                            data-label="<?= html_escape($date['label']) ?>"
+                                            data-active="<?= (int) $date['is_active'] ?>">Edit</button>
                                         <button type="button" class="btn btn-xs btn-success pull-right btn-add-session"
                                             data-toggle="modal" data-target="#modal_schedule_session"
                                             data-date-id="<?= html_escape($date['id']) ?>"
@@ -145,6 +168,17 @@
                                                     <td><?= (int) $session['is_active'] === 1 ? 'Active' : 'Inactive' ?>
                                                     </td>
                                                     <td><button type="button"
+                                                            class="btn btn-xs btn-primary btn-edit-session"
+                                                            data-toggle="modal" data-target="#modal_schedule_session"
+                                                            data-id="<?= html_escape($session['id']) ?>"
+                                                            data-date-id="<?= html_escape($date['id']) ?>"
+                                                            data-session-number="<?= html_escape($session['session_number']) ?>"
+                                                            data-start-time="<?= html_escape($session['start_time']) ?>"
+                                                            data-end-time="<?= html_escape($session['end_time']) ?>"
+                                                            data-therapy-capacity="<?= html_escape($session['therapy_capacity']) ?>"
+                                                            data-non-therapy-capacity="<?= html_escape($session['non_therapy_capacity']) ?>"
+                                                            data-active="<?= (int) $session['is_active'] ?>">Edit</button>
+                                                        <button type="button"
                                                             class="btn btn-xs btn-danger btn-delete-session"
                                                             data-id="<?= html_escape($session['id']) ?>">Hapus</button>
                                                     </td>
@@ -178,6 +212,7 @@
             </div>
             <form method="post" action="<?= base_url($url . '/simpan_schedule_date') ?>" id="f_schedule_date">
                 <input type="hidden" name="report_distribution_id" value="<?= html_escape($data['id']) ?>">
+                <input type="hidden" name="schedule_date_id" id="schedule_date_id">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="distribution_date">Distribution Date</label>
@@ -212,6 +247,7 @@
             </div>
             <form method="post" action="<?= base_url($url . '/simpan_schedule_session') ?>" id="f_schedule_session">
                 <input type="hidden" name="report_distribution_date_id" id="session_date_id">
+                <input type="hidden" name="schedule_session_id" id="schedule_session_id">
                 <div class="modal-body">
                     <p class="text-muted" id="session_date_label"></p>
                     <div class="row">
@@ -272,12 +308,25 @@
         $('#<?= $nama_form ?>').on('submit', function () {
             $.post($(this).attr('action'), $(this).serialize(), function (response) {
                 if (response.status === 'ok') {
-                    window.location.href = '<?= base_url($url) ?>/report';
+                    window.location.reload();
                 } else {
                     noti('danger', response.data);
                 }
             });
             return false;
+        });
+
+        $('.btn-add-date').on('click', function () {
+            $('#f_schedule_date')[0].reset();
+            $('#schedule_date_id').val('');
+        });
+
+        $('.btn-edit-date').on('click', function () {
+            var button = $(this);
+            $('#schedule_date_id').val(button.data('id'));
+            $('#distribution_date').val(button.data('date'));
+            $('#label').val(button.data('label'));
+            $('#f_schedule_date input[name="is_active"]').prop('checked', button.data('active') == 1);
         });
 
         $('#f_schedule_date').on('submit', function () {
@@ -308,10 +357,25 @@
         });
 
         $('.btn-add-session').on('click', function () {
+            $('#f_schedule_session')[0].reset();
+            $('#schedule_session_id').val('');
             $('#session_date_id').val($(this).data('date-id'));
             $('#session_date_label').text('Date: ' + $(this).data('date-label'));
-            $('#f_schedule_session')[0].reset();
-            $('#session_date_id').val($(this).data('date-id'));
+        });
+
+        $('.btn-edit-session').on('click', function () {
+            var button = $(this);
+            $('#schedule_session_id').val(button.data('id'));
+            $('#session_date_id').val(button.data('date-id'));
+            $('#session_date_label').text('Date: ' + button.closest('table').closest('td').find(
+                'strong').first().text());
+            $('#session_number').val(button.data('session-number'));
+            $('#start_time').val(button.data('start-time'));
+            $('#end_time').val(button.data('end-time'));
+            $('#therapy_capacity').val(button.data('therapy-capacity'));
+            $('#non_therapy_capacity').val(button.data('non-therapy-capacity'));
+            $('#f_schedule_session input[name="is_active"]').prop('checked', button.data('active') ==
+                1);
         });
 
         $('#f_schedule_session').on('submit', function () {

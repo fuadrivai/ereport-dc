@@ -32,8 +32,10 @@
                     <td><?= html_escape($d['semester']) ?></td>
                     <td><?= html_escape($d['report_type']) ?></td>
                     <td><?= html_escape($d['title']) ?></td>
-                    <td><?= html_escape($d['booking_start_at']) ?><br><?= html_escape($d['booking_end_at']) ?></td>
-                    <td><span class="label label-<?= $d['status'] === 'active' ? 'success' : 'default' ?>">
+                    <td><?= html_escape(date('d M Y H:i', strtotime($d['booking_start_at']))) ?><br>
+                        <?= html_escape(date('d M Y H:i', strtotime($d['booking_end_at']))) ?></td>
+                    <td><span
+                            class="label label-<?= $d['status'] === 'PUBLISHED' ? 'success' : ($d['status'] === 'DRAFT' ? 'warning' : 'default') ?>">
                             <?= html_escape($d['status']) ?></span></td>
                     <td>
                         <a href="<?= base_url($url . '/edit/' . html_escape($d['id'])) ?>"

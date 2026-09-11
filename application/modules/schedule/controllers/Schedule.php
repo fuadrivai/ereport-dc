@@ -168,7 +168,7 @@ class Schedule extends CI_Controller
         }
 
         if (!in_array($schedule['semester'], array('1', '2'), true) ||
-            !in_array($schedule['status'], array('active', 'inactive'), true)) {
+            !in_array($schedule['status'], array('DRAFT', 'PUBLISHED', 'CLOSED'), true)) {
             j(array('status' => 'gagal', 'data' => 'Semester atau status tidak valid'));
             return;
         }
@@ -179,6 +179,21 @@ class Schedule extends CI_Controller
         }
 
         if ($mode === 'add') {
+            $code = '';
+            for ($attempt = 0; $attempt < 20; $attempt++) {
+                $candidate = 'DC-' . str_pad((string) mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                if (!$this->db->where('code', $candidate)->count_all_results('report_distributions')) {
+                    $code = $candidate;
+                    break;
+                }
+            }
+
+            if ($code === '') {
+                j(array('status' => 'gagal', 'data' => 'Kode schedule gagal dibuat'));
+                return;
+            }
+
+            $schedule['code'] = $code;
             $saved = $this->db->insert('report_distributions', $schedule);
             $message = 'Schedule berhasil disimpan';
         } elseif ($mode === 'edit' && !empty($post['_id'])) {
@@ -199,6 +214,7 @@ class Schedule extends CI_Controller
     public function simpan_schedule_date()
     {
         $post = $this->input->post();
+        $date_id = isset($post['schedule_date_id']) ? trim($post['schedule_date_id']) : '';
         $date = array(
             'report_distribution_id' => isset($post['report_distribution_id']) ? trim($post['report_distribution_id']) : '',
             'distribution_date' => isset($post['distribution_date']) ? trim($post['distribution_date']) : '',
@@ -216,10 +232,19 @@ class Schedule extends CI_Controller
             return;
         }
 
-        $saved = $this->db->insert('report_distribution_dates', $date);
+        if (!empty($date_id)) {
+            $saved = $this->db->where('id', $date_id)
+                ->where('report_distribution_id', $date['report_distribution_id'])
+                ->update('report_distribution_dates', $date);
+            $message = 'Schedule date berhasil diubah';
+        } else {
+            $saved = $this->db->insert('report_distribution_dates', $date);
+            $message = 'Schedule date berhasil disimpan';
+        }
+
         j(array(
             'status' => $saved ? 'ok' : 'gagal',
-            'data' => $saved ? 'Schedule date berhasil disimpan' : 'Schedule date gagal disimpan'
+            'data' => $saved ? $message : 'Schedule date gagal disimpan'
         ));
     }
 
@@ -241,6 +266,7 @@ class Schedule extends CI_Controller
     public function simpan_schedule_session()
     {
         $post = $this->input->post();
+        $session_id = isset($post['schedule_session_id']) ? trim($post['schedule_session_id']) : '';
         $session = array(
             'report_distribution_date_id' => isset($post['report_distribution_date_id']) ? trim($post['report_distribution_date_id']) : '',
             'session_number' => isset($post['session_number']) ? trim($post['session_number']) : '',
@@ -274,10 +300,19 @@ class Schedule extends CI_Controller
             return;
         }
 
-        $saved = $this->db->insert('report_distribution_sessions', $session);
+        if (!empty($session_id)) {
+            $saved = $this->db->where('id', $session_id)
+                ->where('report_distribution_date_id', $session['report_distribution_date_id'])
+                ->update('report_distribution_sessions', $session);
+            $message = 'Session berhasil diubah';
+        } else {
+            $saved = $this->db->insert('report_distribution_sessions', $session);
+            $message = 'Session berhasil disimpan';
+        }
+
         j(array(
             'status' => $saved ? 'ok' : 'gagal',
-            'data' => $saved ? 'Session berhasil disimpan' : 'Session gagal disimpan'
+            'data' => $saved ? $message : 'Session gagal disimpan'
         ));
     }
 
