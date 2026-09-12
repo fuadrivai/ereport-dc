@@ -75,6 +75,7 @@ class Report_distribution_booking extends CI_Controller
             'dates' => $dates,
             'sessions_by_date' => $sessions_by_date,
             'student_search_url' => site_url('report-distribution/booking/students'),
+            'booking_status_url' => site_url('report-distribution/booking/booking-status'),
             'submit_url' => site_url('report-distribution/booking/submit')
         ));
     }
@@ -82,22 +83,39 @@ class Report_distribution_booking extends CI_Controller
     public function students()
     {
         $query = trim((string) $this->input->get('q'));
-        if (strlen($query) < 2) {
+        $booking_type = strtoupper(trim((string) $this->input->get('booking_type')));
+        if (strlen($query) < 2 || !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
             $this->json(array('results' => array()));
             return;
         }
 
-        $this->db->select('id, nama, nis, nisn')
-            ->from('m_siswa')
-            ->where('stat_data', 'A')
+        $this->db->select("m.id, m.nama, m.nis, m.nisn, k.nama AS student_grade, g.nama AS homeroom_teacher, (SELECT nama_kepsek FROM tahun WHERE aktif = 'Y' LIMIT 1) AS principal_name")
+            ->from('m_siswa m')
+            ->join('t_kelas_siswa ks', "ks.id_siswa = m.id AND ks.ta = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE aktif = 'Y' LIMIT 1)", 'left')
+            ->join('m_kelas k', 'k.id = ks.id_kelas', 'left')
+            ->join('t_walikelas wk', "wk.id_kelas = ks.id_kelas AND wk.tasm = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE aktif = 'Y' LIMIT 1)", 'left')
+            ->join('m_guru g', 'g.id = wk.id_guru', 'left')
+            ->where('m.stat_data', 'A')
             ->group_start()
-            ->like('nama', $query)
-            ->or_like('nis', $query)
-            ->or_like('nisn', $query)
-            ->group_end()
-            ->order_by('nama', 'ASC')
-            ->limit(20);
-        $students = $this->db->get()->result_array();
+            ->like('m.nama', $query)
+            ->or_like('m.nis', $query)
+            ->or_like('m.nisn', $query)
+            ->group_end();
+
+        if ($booking_type === 'THERAPY') {
+            $this->db->join('student_therapists st', 'st.student_id = m.id', 'inner')
+                ->join('tahun y', 'y.id = st.tahun_id', 'inner')
+                ->where('st.is_active', 1)
+                ->where('y.aktif', 'Y');
+        } else {
+            $this->db->join('student_therapists st', 'st.student_id = m.id AND st.is_active = 1', 'left')
+                ->join('tahun y', "y.id = st.tahun_id AND y.aktif = 'Y'", 'left')
+                ->where('st.id IS NULL', null, false);
+        }
+
+        $students = $this->db->order_by('m.nama', 'ASC')
+            ->limit(20)
+            ->get()->result_array();
 
         $results = array();
         foreach ($students as $student) {
@@ -109,22 +127,59 @@ class Report_distribution_booking extends CI_Controller
                 'id' => $student['id'],
                 'text' => $student['nama'] . ($identifier !== '' ? ' (' . $identifier . ')' : ''),
                 'name' => $student['nama'],
-                'identifier' => $identifier
+                'identifier' => $identifier,
+                'student_grade' => $student['student_grade'],
+                'homeroom_teacher' => $student['homeroom_teacher'],
+                'principal_name' => $student['principal_name']
             );
         }
 
         $this->json(array('results' => $results));
     }
 
+    public function booking_status()
+    {
+        $code = trim((string) $this->input->get('report_code'));
+        $student_id = trim((string) $this->input->get('student_id'));
+        $report = $this->get_report($code);
+
+        if (empty($report) || $student_id === '') {
+            $this->json(array('status' => 'error', 'message' => 'Unable to check the student booking status.'));
+            return;
+        }
+
+        $active_booking = $this->get_active_booking($report['id'], $student_id);
+        $has_active_booking = !empty($active_booking);
+        $schedule = $has_active_booking
+            ? date('d M Y', strtotime($active_booking['distribution_date'])) . ', ' .
+                date('H:i', strtotime($active_booking['start_time'])) . ' - ' .
+                date('H:i', strtotime($active_booking['end_time']))
+            : '';
+
+        $this->json(array(
+            'status' => 'ok',
+            'has_active_booking' => $has_active_booking,
+            'active_schedule' => $schedule,
+            'message' => $has_active_booking
+                ? 'This student already has an active booking for ' . $schedule .
+                    '. Please contact the admin division to cancel the existing booking.'
+                : ''
+        ));
+    }
+
     public function submit()
     {
-        $post = $this->input->post();
         $code = trim((string) $this->input->post('report_code'));
         $student_id = trim((string) $this->input->post('student_id'));
         $session_id = trim((string) $this->input->post('session_id'));
         $booking_type = strtoupper(trim((string) $this->input->post('booking_type')));
+        $parent_name = trim((string) $this->input->post('parent_name'));
+        $parent_email = trim((string) $this->input->post('parent_email'));
+        $parent_phone = trim((string) $this->input->post('parent_phone'));
 
         if ($code === '' || $student_id === '' || $session_id === '' ||
+            $parent_name === '' || $parent_phone === '' ||
+            !filter_var($parent_email, FILTER_VALIDATE_EMAIL) ||
             !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
             $this->json(array('status' => 'error', 'message' => 'Please complete all required booking fields.'));
             return;
@@ -146,6 +201,19 @@ class Report_distribution_booking extends CI_Controller
             ->get('m_siswa')->row_array();
         if (empty($student)) {
             $this->json(array('status' => 'error', 'message' => 'The selected student is not valid.'));
+            return;
+        }
+
+        $student_therapist = $this->db->where('student_id', $student_id)
+            ->where('tahun_id', $report['tahun_id'])
+            ->where('is_active', 1)
+            ->get('student_therapists')->row_array();
+        if ($booking_type === 'THERAPY' && empty($student_therapist)) {
+            $this->json(array('status' => 'error', 'message' => 'The selected student does not have an active therapy assignment.'));
+            return;
+        }
+        if ($booking_type === 'NON_THERAPY' && !empty($student_therapist)) {
+            $this->json(array('status' => 'error', 'message' => 'Students with an active therapy assignment must use a therapy booking.'));
             return;
         }
 
@@ -181,13 +249,13 @@ class Report_distribution_booking extends CI_Controller
             return;
         }
 
-        $duplicate = $this->db->where('report_distribution_id', $report['id'])
-            ->where('student_id', $student_id)
-            ->where('status', 'BOOKED')
-            ->count_all_results('report_distribution_bookings');
-        if ($duplicate > 0) {
+        $active_booking = $this->get_active_booking($report['id'], $student_id);
+        if (!empty($active_booking)) {
+            $schedule = date('d M Y', strtotime($active_booking['distribution_date'])) . ', ' .
+                date('H:i', strtotime($active_booking['start_time'])) . ' - ' .
+                date('H:i', strtotime($active_booking['end_time']));
             $this->db->trans_rollback();
-            $this->json(array('status' => 'error', 'message' => 'This student already has a booking for this report distribution.'));
+            $this->json(array('status' => 'error', 'message' => 'This student already has an active booking for ' . $schedule . '. Please contact the admin division to cancel the existing booking.'));
             return;
         }
 
@@ -216,8 +284,11 @@ class Report_distribution_booking extends CI_Controller
             'report_distribution_id' => $report['id'],
             'session_id' => $session_id,
             'student_id' => $student_id,
+            'parent_name' => $parent_name,
+            'parent_email' => $parent_email,
+            'parent_phone' => $parent_phone,
             'booking_type' => $booking_type,
-            'therapist_id' => null,
+            'therapist_id' => $booking_type === 'THERAPY' ? $student_therapist['therapist_id'] : null,
             'status' => 'BOOKED',
             'booked_at' => date('Y-m-d H:i:s'),
             'notes' => null
@@ -245,7 +316,7 @@ class Report_distribution_booking extends CI_Controller
 
     public function success($booking_code = '')
     {
-        $booking = $this->db->select('b.*, r.title, r.report_type, r.semester, t.tahun AS tahun_label,
+        $booking = $this->db->select('b.*, r.code AS report_code, r.title, r.report_type, r.semester, t.tahun AS tahun_label,
                 s.start_time, s.end_time, d.distribution_date, m.nama AS student_name,
                 m.nis AS student_nis')
             ->from('report_distribution_bookings b')
@@ -279,6 +350,19 @@ class Report_distribution_booking extends CI_Controller
             ->from('report_distributions r')
             ->join('tahun t', 't.id = r.tahun_id', 'left')
             ->where('r.code', $code)
+            ->get()->row_array();
+    }
+
+    private function get_active_booking($report_distribution_id, $student_id)
+    {
+        return $this->db->select('b.id, d.distribution_date, s.start_time, s.end_time')
+            ->from('report_distribution_bookings b')
+            ->join('report_distribution_sessions s', 's.id = b.session_id')
+            ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
+            ->where('b.report_distribution_id', $report_distribution_id)
+            ->where('b.student_id', $student_id)
+            ->where('b.status', 'BOOKED')
+            ->order_by('b.booked_at', 'DESC')
             ->get()->row_array();
     }
 

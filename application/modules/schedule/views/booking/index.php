@@ -1,73 +1,79 @@
 <?php
 $first_date_id = !empty($dates) ? $dates[0]['id'] : '';
-$format_date = function ($value) {
-    return date('D, d M Y', strtotime($value));
-};
-$format_time = function ($value) {
-    return date('H:i', strtotime($value));
-};
+$format_date = function ($value) { return date('D, d M Y', strtotime($value)); };
+$format_time = function ($value) { return date('H:i', strtotime($value)); };
 ?>
-<div class="booking-card booking-hero">
-    <div class="booking-eyebrow">Report Distribution</div>
-    <h1><?= html_escape($report['title']) ?></h1>
-    <div class="booking-meta">
-        <div><strong>Academic Year</strong><?= html_escape($report['tahun_label']) ?></div>
-        <div><strong>Semester</strong>Semester <?= html_escape($report['semester']) ?></div>
-        <div><strong>Report Type</strong><?= html_escape($report['report_type']) ?> Report</div>
-    </div>
-    <?php if (!empty($report['description'])) { ?>
-    <p class="booking-description"><?= nl2br(html_escape($report['description'])) ?></p>
-    <?php } ?>
-</div>
-
 <?php if (empty($dates)) { ?>
-<div class="booking-card booking-card-body">
-    <h2 class="booking-section-title">Booking is currently unavailable</h2>
-    <p class="booking-help">No booking dates are available for this report distribution yet.</p>
-</div>
+<h2 class="booking-section-title">Booking is currently unavailable</h2>
+<p class="booking-lead">No booking dates are available for this report distribution yet.</p>
 <?php } else { ?>
-<form id="booking-form" action="<?= html_escape($submit_url) ?>" method="post">
+<form id="booking-form" action="<?= html_escape($submit_url) ?>" method="post"
+    data-student-url="<?= html_escape($student_search_url) ?>"
+    data-booking-status-url="<?= html_escape($booking_status_url) ?>">
     <input type="hidden" name="report_code" value="<?= html_escape($report['code']) ?>">
     <input type="hidden" name="session_id" id="session_id">
     <input type="hidden" name="booking_type" id="booking_type">
 
-    <div class="booking-card booking-card-body">
-        <h2 class="booking-section-title"><i class="fa fa-user-o"></i> Choose Student</h2>
+    <section class="wizard-panel active" data-step="1">
+        <h2 class="booking-section-title">Welcome</h2>
+        <p class="booking-lead">Please review the report distribution information before making your booking.</p>
+        <h3><?= html_escape($report['title']) ?></h3>
+        <div class="booking-meta">
+            <div><strong>Academic Year</strong><?= html_escape($report['tahun_label']) ?></div>
+            <div><strong>Semester</strong>Semester <?= html_escape($report['semester']) ?></div>
+            <div><strong>Report Type</strong><?= html_escape($report['report_type']) ?> Report</div>
+            <div><strong>Booking
+                    Period</strong><?= html_escape(date('d M Y H:i', strtotime($report['booking_start_at']))) ?> -
+                <?= html_escape(date('d M Y H:i', strtotime($report['booking_end_at']))) ?></div>
+        </div>
+        <?php if (!empty($report['description'])) { ?><p class="booking-description">
+            <?= nl2br(html_escape($report['description'])) ?></p><?php } ?>
+    </section>
+
+    <section class="wizard-panel" data-step="2">
+        <h2 class="booking-section-title">Student and Parent Details</h2>
+        <label class="booking-label">Attendance Type</label>
+        <div class="booking-type-grid" role="radiogroup">
+            <label class="choice-card booking-type-card"><input type="radio" name="booking_type_choice"
+                    value="THERAPY"><i class="fa fa-heart-o"></i><strong>Therapy</strong><small>Show students with an
+                    active therapy assignment.</small></label>
+            <label class="choice-card booking-type-card"><input type="radio" name="booking_type_choice"
+                    value="NON_THERAPY"><i class="fa fa-users"></i><strong>Without Therapy</strong><small>Show students
+                    without an active therapy assignment.</small></label>
+        </div>
         <label class="booking-label" for="student_id">Student</label>
         <select id="student_id" name="student_id" class="form-control" required></select>
-        <div class="booking-help">Search by student name, NIS, or NISN.</div>
-    </div>
+        <p class="booking-help">Choose an attendance type first, then search by student name, NIS, or NISN.</p>
+        <label class="booking-label" for="parent_name">Parent / Guardian Name</label>
+        <input class="form-control" id="parent_name" name="parent_name" required>
+        <label class="booking-label" for="parent_email">Parent / Guardian Email</label>
+        <input class="form-control" id="parent_email" name="parent_email" type="email" required>
+        <label class="booking-label" for="parent_phone">Parent / Guardian Phone</label>
+        <input class="form-control" id="parent_phone" name="parent_phone" type="tel" required>
+    </section>
 
-    <div class="booking-card booking-card-body">
-        <h2 class="booking-section-title"><i class="fa fa-calendar-o"></i> Choose Your Preferred Date</h2>
-        <div class="date-grid" role="radiogroup" aria-label="Choose date">
+    <section class="wizard-panel" data-step="3">
+        <h2 class="booking-section-title">Choose Schedule</h2>
+        <label class="booking-label">Preferred Date</label>
+        <div class="date-grid" role="radiogroup">
             <?php foreach ($dates as $date) { ?>
             <label
                 class="choice-card date-choice <?= (string) $date['id'] === (string) $first_date_id ? 'selected' : '' ?>">
                 <input type="radio" name="date_id" value="<?= html_escape($date['id']) ?>"
                     data-target="date-panel-<?= html_escape($date['id']) ?>"
                     <?= (string) $date['id'] === (string) $first_date_id ? 'checked' : '' ?> required>
-                <strong><?= html_escape($format_date($date['distribution_date'])) ?></strong>
-                <small><?= html_escape($date['label']) ?></small>
+                <strong><?= html_escape($format_date($date['distribution_date'])) ?></strong><small><?= html_escape($date['label']) ?></small>
             </label>
             <?php } ?>
         </div>
-    </div>
-
-    <div class="booking-card booking-card-body">
-        <h2 class="booking-section-title"><i class="fa fa-clock-o"></i> Choose Your Time</h2>
+        <label class="booking-label">Preferred Time</label>
         <?php foreach ($dates as $date) { ?>
         <div class="date-panel <?= (string) $date['id'] === (string) $first_date_id ? 'active' : '' ?>"
             id="date-panel-<?= html_escape($date['id']) ?>">
-            <div class="session-grid" role="radiogroup" aria-label="Choose session">
+            <div class="session-grid" role="radiogroup">
                 <?php foreach (isset($sessions_by_date[$date['id']]) ? $sessions_by_date[$date['id']] : array() as $session) {
-                    $therapy_capacity = $session['therapy_capacity'];
-                    $non_therapy_capacity = $session['non_therapy_capacity'];
-                    $therapy_left = $therapy_capacity === null || $therapy_capacity === ''
-                        ? null : max(0, (int) $therapy_capacity - (int) $session['therapy_booked']);
-                    $non_therapy_left = $non_therapy_capacity === null || $non_therapy_capacity === ''
-                        ? null : max(0, (int) $non_therapy_capacity - (int) $session['non_therapy_booked']);
-                ?>
+                    $therapy_left = $session['therapy_capacity'] === null || $session['therapy_capacity'] === '' ? null : max(0, (int) $session['therapy_capacity'] - (int) $session['therapy_booked']);
+                    $non_therapy_left = $session['non_therapy_capacity'] === null || $session['non_therapy_capacity'] === '' ? null : max(0, (int) $session['non_therapy_capacity'] - (int) $session['non_therapy_booked']); ?>
                 <label class="choice-card session-card session-choice">
                     <input type="radio" name="session_choice" value="<?= html_escape($session['id']) ?>"
                         data-session-id="<?= html_escape($session['id']) ?>"
@@ -75,81 +81,64 @@ $format_time = function ($value) {
                         data-non-therapy-left="<?= $non_therapy_left === null ? '' : $non_therapy_left ?>">
                     <strong class="session-time"><?= html_escape($format_time($session['start_time'])) ?> -
                         <?= html_escape($format_time($session['end_time'])) ?></strong>
-                    <small class="session-capacity">
-                        Therapy: <?= $therapy_left === null ? 'Available' : $therapy_left . ' slot(s) left' ?>
+                    <small>Therapy: <?= $therapy_left === null ? 'Available' : $therapy_left . ' slot(s) left' ?>
                         &middot; Non-therapy:
-                        <?= $non_therapy_left === null ? 'Available' : $non_therapy_left . ' slot(s) left' ?>
-                    </small>
+                        <?= $non_therapy_left === null ? 'Available' : $non_therapy_left . ' slot(s) left' ?></small>
                 </label>
                 <?php } ?>
             </div>
-            <?php if (empty($sessions_by_date[$date['id']])) { ?>
-            <p class="booking-help">No sessions are available for this date.</p>
-            <?php } ?>
+            <?php if (empty($sessions_by_date[$date['id']])) { ?><p class="booking-help">No sessions are available for
+                this date.</p><?php } ?>
         </div>
         <?php } ?>
-    </div>
+    </section>
 
-    <div class="booking-card booking-card-body">
-        <h2 class="booking-section-title"><i class="fa fa-hand-pointer-o"></i> How Will Your Child Attend?</h2>
-        <div class="booking-type-grid" role="radiogroup" aria-label="Booking type">
-            <label class="choice-card booking-type-card">
-                <input type="radio" name="booking_type_choice" value="THERAPY">
-                <i class="fa fa-heart-o"></i>
-                <strong>Therapy</strong>
-                <small>This session is limited by therapy capacity.</small>
-            </label>
-            <label class="choice-card booking-type-card">
-                <input type="radio" name="booking_type_choice" value="NON_THERAPY">
-                <i class="fa fa-users"></i>
-                <strong>Without Therapy</strong>
-                <small>Attend the report distribution without therapy.</small>
-            </label>
-        </div>
-        <p class="booking-help" id="therapy-help" style="display:none">This session is limited to one student for
-            therapy.</p>
-    </div>
-
-    <div class="booking-card booking-card-body">
-        <h2 class="booking-section-title"><i class="fa fa-list-alt"></i> Booking Summary</h2>
+    <section class="wizard-panel" data-step="4">
+        <h2 class="booking-section-title">Confirm Your Booking</h2>
         <div class="booking-summary">
             <div class="summary-row"><span class="summary-label">Student</span><span class="summary-value"
                     id="summary-student">Not selected</span></div>
+            <div class="summary-row"><span class="summary-label">Grade</span><span class="summary-value"
+                    id="summary-grade">Not assigned</span></div>
+            <div class="summary-row"><span class="summary-label">Homeroom Teacher</span><span class="summary-value"
+                    id="summary-homeroom-teacher">Not assigned</span></div>
+            <div class="summary-row"><span class="summary-label">Principal</span><span class="summary-value"
+                    id="summary-principal">Not assigned</span></div>
+            <div class="summary-row"><span class="summary-label">Parent / Guardian</span><span class="summary-value"
+                    id="summary-parent">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Date</span><span class="summary-value"
                     id="summary-date">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value"
                     id="summary-time">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Attendance</span><span class="summary-value"
                     id="summary-type">Not selected</span></div>
-            <div class="summary-row"><span class="summary-label">Therapist</span><span class="summary-value">Not
-                    assigned yet</span></div>
         </div>
-        <div class="booking-error" id="booking-error"></div>
-        <button type="submit" class="btn btn-booking btn-block" id="confirm-booking" disabled>
-            <i class="fa fa-check"></i> Confirm Booking
-        </button>
+    </section>
+
+    <div class="booking-error" id="booking-error"></div>
+    <div class="booking-actions"><button class="btn btn-back" id="wizard-back" type="button" style="display:none"><i
+                class="fa fa-arrow-left"></i> Back</button><button class="btn btn-booking" id="wizard-next"
+            type="button">Next <i class="fa fa-arrow-right"></i></button><button class="btn btn-booking"
+            id="confirm-booking" type="submit" style="display:none"><i class="fa fa-check"></i> Confirm Booking</button>
     </div>
 </form>
-
 <script>
     $(function () {
-        var $form = $('#booking-form');
-        var $student = $('#student_id');
-        var $session = $('#session_id');
-        var $type = $('#booking_type');
-        var $button = $('#confirm-booking');
-
+        var currentStep = 1,
+            $form = $('#booking-form'),
+            $student = $('#student_id');
         $student.select2({
             width: '100%',
             placeholder: 'Search student name, NIS, or NISN',
             minimumInputLength: 2,
             ajax: {
-                url: < ? = json_encode($student_search_url) ? > ,
+                url: $form.data('student-url'),
                 dataType: 'json',
                 delay: 250,
                 data: function (params) {
                     return {
-                        q: params.term
+                        q: params.term,
+                        booking_type: $('input[name="booking_type_choice"]:checked').val() || ''
                     };
                 },
                 processResults: function (data) {
@@ -163,20 +152,15 @@ $format_time = function ($value) {
         }
 
         function updateState() {
-            var session = selectedSession();
-            var type = $('input[name="booking_type_choice"]:checked').val() || '';
-            var hasStudent = !!$student.val();
-            var therapyLeft = session.data('therapy-left');
-            var nonTherapyLeft = session.data('non-therapy-left');
-            var capacityAvailable = type === 'THERAPY' ?
-                (therapyLeft === '' || parseInt(therapyLeft, 10) > 0) :
-                (nonTherapyLeft === '' || parseInt(nonTherapyLeft, 10) > 0);
-
-            $session.val(session.data('session-id') || '');
-            $type.val(type);
-            $('#therapy-help').toggle(type === 'THERAPY');
-            $button.prop('disabled', !(hasStudent && session.length && type && capacityAvailable));
+            var session = selectedSession(),
+                type = $('input[name="booking_type_choice"]:checked').val() || '';
+            $('#session_id').val(session.data('session-id') || '');
+            $('#booking_type').val(type);
             $('#summary-student').text($student.find('option:selected').text() || 'Not selected');
+            $('#summary-grade').text($student.data('student-grade') || 'Not assigned');
+            $('#summary-homeroom-teacher').text($student.data('homeroom-teacher') || 'Not assigned');
+            $('#summary-principal').text($student.data('principal-name') || 'Not assigned');
+            $('#summary-parent').text($('#parent_name').val() || 'Not selected');
             $('#summary-type').text(type === 'THERAPY' ? 'Therapy' : (type === 'NON_THERAPY' ?
                 'Without Therapy' : 'Not selected'));
             $('#summary-time').text(session.length ? session.closest('label').find('.session-time').text() :
@@ -185,6 +169,96 @@ $format_time = function ($value) {
                 'Not selected');
         }
 
+        function showStep(step) {
+            currentStep = step;
+            $('.wizard-panel').removeClass('active');
+            $('.wizard-panel[data-step="' + step + '"]').addClass('active');
+            $('.wizard-steps li').each(function (index) {
+                $(this).toggleClass('active', index + 1 === step).toggleClass('complete', index + 1 <
+                    step);
+            });
+            $('#wizard-back').toggle(step > 1);
+            $('#wizard-next').toggle(step < 4);
+            $('#confirm-booking').toggle(step === 4);
+            updateState();
+            window.scrollTo(0, 0);
+        }
+
+        function validStep() {
+            if (currentStep === 2) {
+                return !!$('input[name="booking_type_choice"]:checked').val() && !!$student.val() && $(
+                        '#parent_name').val().trim() !== '' && $('#parent_email')[0]
+                    .checkValidity() && $('#parent_phone').val().trim() !== '';
+            }
+            if (currentStep === 3) {
+                var session = selectedSession(),
+                    type = $('input[name="booking_type_choice"]:checked').val(),
+                    left = type === 'THERAPY' ? session.data('therapy-left') : session.data('non-therapy-left');
+                return session.length > 0 && (left === '' || parseInt(left, 10) > 0);
+            }
+            return true;
+        }
+
+        function validationMessage() {
+            if (currentStep !== 3) {
+                return 'Please complete the required fields before continuing.';
+            }
+
+            var session = selectedSession();
+            if (!session.length) {
+                return 'Please select a time slot before continuing.';
+            }
+
+            var type = $('input[name="booking_type_choice"]:checked').val(),
+                left = type === 'THERAPY' ? session.data('therapy-left') : session.data('non-therapy-left');
+            if (left !== '' && parseInt(left, 10) <= 0) {
+                return type === 'THERAPY' ?
+                    'This therapy time slot is full. Please choose another time slot.' :
+                    'This time slot is full. Please choose another time slot.';
+            }
+
+            return 'Please complete the required fields before continuing.';
+        }
+
+        function proceedToSchedule() {
+            $.get($form.data('booking-status-url'), {
+                report_code: $form.find('[name="report_code"]').val(),
+                student_id: $student.val()
+            }, function (response) {
+                if (response.status !== 'ok') {
+                    $('#booking-error').text(response.message ||
+                        'Unable to check the student booking status.').show();
+                    return;
+                }
+                if (response.has_active_booking) {
+                    $('#booking-error').text(response.message).show();
+                    return;
+                }
+                $('#booking-error').hide();
+                showStep(currentStep + 1);
+            }, 'json').fail(function () {
+                $('#booking-error').text(
+                    'Unable to check the student booking status. Please try again.').show();
+            });
+        }
+
+        $('#wizard-next').on('click', function () {
+            if (!validStep()) {
+                $('#booking-error').text(validationMessage())
+                    .show();
+                return;
+            }
+            if (currentStep === 2) {
+                proceedToSchedule();
+                return;
+            }
+            $('#booking-error').hide();
+            showStep(currentStep + 1);
+        });
+        $('#wizard-back').on('click', function () {
+            $('#booking-error').hide();
+            showStep(currentStep - 1);
+        });
         $('input[name="date_id"]').on('change', function () {
             $('.date-choice').removeClass('selected');
             $(this).closest('.date-choice').addClass('selected');
@@ -194,26 +268,40 @@ $format_time = function ($value) {
                 .removeClass('selected');
             updateState();
         });
-
         $('input[name="session_choice"]').on('change', function () {
             $('.session-choice').removeClass('selected');
             $(this).closest('.session-choice').addClass('selected');
             updateState();
         });
-
         $('input[name="booking_type_choice"]').on('change', function () {
             $('.booking-type-card').removeClass('selected');
             $(this).closest('.booking-type-card').addClass('selected');
+            $student.removeData('student-grade');
+            $student.removeData('homeroom-teacher');
+            $student.removeData('principal-name');
+            $student.val(null).trigger('change');
             updateState();
         });
-
+        $student.on('select2:select select2-selecting', function (event) {
+            var student = event.params ? event.params.data : event.object;
+            $student.data('student-grade', student && student.student_grade ? student.student_grade :
+                'Not assigned');
+            $student.data('homeroom-teacher', student && student.homeroom_teacher ? student
+                .homeroom_teacher :
+                'Not assigned');
+            $student.data('principal-name', student && student.principal_name ? student.principal_name :
+                'Not assigned');
+        });
         $student.on('change', updateState);
-        updateState();
-
+        $('#parent_name').on('input', updateState);
         $form.on('submit', function (event) {
             event.preventDefault();
+            if (!validStep()) {
+                $('#booking-error').text('Please review your booking details.').show();
+                return;
+            }
+            var $button = $('#confirm-booking');
             $button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-            $('#booking-error').hide().text('');
             $.post($form.attr('action'), $form.serialize(), function (response) {
                 if (response.status === 'ok') {
                     window.location.href = response.redirect;
@@ -230,6 +318,7 @@ $format_time = function ($value) {
                     '<i class="fa fa-check"></i> Confirm Booking');
             });
         });
+        updateState();
     });
 </script>
 <?php } ?>
