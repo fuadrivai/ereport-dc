@@ -14,6 +14,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $route['default_controller'] = 'home';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
+$route['schedule/registration-list/(:num)'] = 'schedule/schedule/registration_list/$1';
 $route['report-distribution/booking/students'] = 'schedule/report_distribution_booking/students';
 $route['report-distribution/booking/booking-status'] = 'schedule/report_distribution_booking/booking_status';
 $route['report-distribution/booking/submit'] = 'schedule/report_distribution_booking/submit';

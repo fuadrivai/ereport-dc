@@ -176,6 +176,7 @@ class Report_distribution_booking extends CI_Controller
         $parent_name = trim((string) $this->input->post('parent_name'));
         $parent_email = trim((string) $this->input->post('parent_email'));
         $parent_phone = trim((string) $this->input->post('parent_phone'));
+        $notes = trim((string) $this->input->post('notes'));
 
         if ($code === '' || $student_id === '' || $session_id === '' ||
             $parent_name === '' || $parent_phone === '' ||
@@ -204,9 +205,11 @@ class Report_distribution_booking extends CI_Controller
             return;
         }
 
-        $student_therapist = $this->db->where('student_id', $student_id)
-            ->where('tahun_id', $report['tahun_id'])
-            ->where('is_active', 1)
+        $student_therapist = $this->db->where('student_therapists.student_id', $student_id)
+            ->where('student_therapists.tahun_id', $report['tahun_id'])
+            ->where('student_therapists.is_active', 1)
+            ->join('therapists', 'therapists.id = student_therapists.therapist_id')
+            ->where('therapists.is_active', 1)
             ->get('student_therapists')->row_array();
         if ($booking_type === 'THERAPY' && empty($student_therapist)) {
             $this->json(array('status' => 'error', 'message' => 'The selected student does not have an active therapy assignment.'));
@@ -235,7 +238,7 @@ class Report_distribution_booking extends CI_Controller
         }
 
         $session = $this->db->query(
-            'SELECT s.*, d.report_distribution_id
+            'SELECT s.*, d.report_distribution_id, d.distribution_date
              FROM report_distribution_sessions s
              INNER JOIN report_distribution_dates d ON d.id = s.report_distribution_date_id
              WHERE s.id = ? AND s.is_active = 1 AND d.is_active = 1
@@ -291,7 +294,7 @@ class Report_distribution_booking extends CI_Controller
             'therapist_id' => $booking_type === 'THERAPY' ? $student_therapist['therapist_id'] : null,
             'status' => 'BOOKED',
             'booked_at' => date('Y-m-d H:i:s'),
-            'notes' => null
+            'notes' => $notes
         );
 
         $saved = $this->db->insert('report_distribution_bookings', $booking);
@@ -302,6 +305,55 @@ class Report_distribution_booking extends CI_Controller
         }
 
         $this->db->trans_commit();
+        $therapist_name = 'Not assigned';
+        if ($booking_type === 'THERAPY' && !empty($student_therapist['therapist_id'])) {
+            $therapist = $this->db->select('name')
+                ->where('id', $student_therapist['therapist_id'])
+                ->get('therapists')->row_array();
+            if (!empty($therapist['name'])) {
+                $therapist_name = $therapist['name'];
+            }
+        }
+        $calendar_event = $this->sync_google_calendar_event(
+            '',
+            $booking_code,
+            $report['title'],
+            $student['nama'],
+            $booking_type,
+            $parent_email,
+            $session['distribution_date'],
+            $session['start_time'],
+            $session['end_time'],
+            $parent_name,
+            $therapist_name
+        );
+        if (!empty($calendar_event['event_id'])) {
+            $calendar_saved = $this->db->where('booking_code', $booking_code)->update('report_distribution_bookings', array(
+                'google_calendar_event_id' => $calendar_event['event_id'],
+                'gmeet_link' => !empty($calendar_event['gmeet_link']) ? $calendar_event['gmeet_link'] : null
+            ));
+            if (!$calendar_saved) {
+                log_message('error', 'Google Calendar event ID could not be saved for booking ' . $booking_code . ': ' .
+                    $this->db->error()['message']);
+            }
+        } else {
+            log_message('error', 'Google Calendar did not return an event ID for booking ' . $booking_code . '.');
+        }
+        $this->send_booking_confirmation_email(
+            $parent_email,
+            $parent_name,
+            $booking_code,
+            $student['nama'],
+            $booking_type,
+            $therapist_name,
+            $session['start_time'],
+            $session['end_time'],
+            $session['distribution_date'],
+            $report['title'],
+            $report['semester'],
+            $report['report_type'],
+            !empty($calendar_event['gmeet_link']) ? $calendar_event['gmeet_link'] : ''
+        );
         $this->json(array(
             'status' => 'ok',
             'redirect' => site_url('report-distribution/booking/success/' . rawurlencode($booking_code)),
@@ -314,17 +366,253 @@ class Report_distribution_booking extends CI_Controller
         ));
     }
 
+    private function sync_google_calendar_event($event_id, $booking_code, $report_title, $student_name,
+        $booking_type, $attendee_email, $distribution_date, $start_time, $end_time, $parent_name, $therapist_name)
+    {
+        if ($event_id !== '') {
+            $updated_event = $this->update_google_calendar_event(
+                $event_id,
+                $booking_code,
+                $report_title,
+                $student_name,
+                $booking_type,
+                $attendee_email,
+                $distribution_date,
+                $start_time,
+                $end_time
+            );
+            if (!empty($updated_event['id'])) {
+                return array(
+                    'event_id' => $updated_event['id'],
+                    'gmeet_link' => !empty($updated_event['hangoutLink']) ? $updated_event['hangoutLink'] : ''
+                );
+            }
+        }
+
+        return $this->create_google_calendar_event(
+            $booking_code,
+            $report_title,
+            $student_name,
+            $booking_type,
+            $attendee_email,
+            $distribution_date,
+            $start_time,
+            $end_time,
+            $parent_name,
+            $therapist_name
+        );
+        }
+
+    private function create_google_calendar_event($booking_code, $report_title, $student_name, $booking_type,
+        $attendee_email, $distribution_date, $start_time, $end_time, $parent_name, $therapist_name)
+    {
+        $calendar = $this->get_google_calendar_service();
+        if ($calendar === null) {
+            return array();
+        }
+
+        $type_label = $booking_type === 'THERAPY' ? 'Therapy' : 'Without Therapy';
+        $description = 'MHIS Report Distribution' . "\n\n" .
+            'Booking Code: ' . $booking_code . "\n" .
+            'Student: ' . $student_name . "\n" .
+            'Parent: ' . $parent_name . "\n" .
+            'Booking Type: ' . $type_label;
+        if ($booking_type === 'THERAPY') {
+            $description .= "\nTherapist: " . $therapist_name;
+        }
+        $description .= "\n\nPlease join Google Meet at the scheduled time.";
+
+        try {
+            $timezone = $this->config->item('google_calendar_timezone') ?: 'Asia/Jakarta';
+            $timezone_object = new \DateTimeZone($timezone);
+            $start_datetime = new \DateTime($distribution_date . ' ' . $start_time, $timezone_object);
+            $end_datetime = new \DateTime($distribution_date . ' ' . $end_time, $timezone_object);
+            $event = new \Google\Service\Calendar\Event(array(
+                'summary' => 'Report Distribution - ' . $student_name,
+                'description' => $description,
+                'attendees' => array(array('email' => $attendee_email)),
+                'start' => array('dateTime' => $start_datetime->format('c'), 'timeZone' => $timezone),
+                'end' => array('dateTime' => $end_datetime->format('c'), 'timeZone' => $timezone),
+                'conferenceData' => array('createRequest' => array(
+                    'requestId' => 'report-distribution-' . $booking_code,
+                    'conferenceSolutionKey' => array('type' => 'hangoutsMeet')
+                ))
+            ));
+            $created_event = $calendar->events->insert($this->config->item('google_calendar_id'), $event, array(
+                'conferenceDataVersion' => 1,
+                'sendUpdates' => 'none'
+            ));
+            $event_id = $created_event->getId();
+            try {
+                $gmeet_link = $this->get_google_meet_link($calendar, $event_id, $created_event);
+            } catch (\Exception $exception) {
+                log_message('error', 'Report Distribution Google Meet Error: ' . $exception->getMessage());
+                $gmeet_link = '';
+            }
+            if ($gmeet_link === '') {
+                log_message('error', 'Google Meet link is not ready for booking ' . $booking_code . '.');
+            }
+            return array('event_id' => $event_id, 'gmeet_link' => $gmeet_link);
+        } catch (\Exception $exception) {
+            log_message('error', 'Report Distribution Google Calendar Error: ' . $exception->getMessage());
+            return array();
+        }
+    }
+
+    private function update_google_calendar_event($event_id, $booking_code, $report_title, $student_name,
+        $booking_type, $attendee_email, $distribution_date, $start_time, $end_time)
+    {
+        $calendar = $this->get_google_calendar_service();
+        if ($calendar === null) {
+            return array();
+        }
+
+        try {
+            $event = new \Google\Service\Calendar\Event(array(
+                'summary' => 'Report Distribution - ' . $student_name,
+                'start' => array('dateTime' => date('c', strtotime($distribution_date . ' ' . $start_time))),
+                'end' => array('dateTime' => date('c', strtotime($distribution_date . ' ' . $end_time)))
+            ));
+            $updated_event = $calendar->events->patch($this->config->item('google_calendar_id'), $event_id, $event);
+            return array('id' => $updated_event->getId());
+        } catch (\Exception $exception) {
+            log_message('error', 'Report Distribution Google Calendar Error: ' . $exception->getMessage());
+            return array();
+        }
+    }
+
+    private function delete_google_calendar_event($event_id)
+    {
+        if ($event_id === '') {
+            return true;
+        }
+        $calendar = $this->get_google_calendar_service();
+        if ($calendar === null) {
+            return false;
+        }
+        try {
+            $calendar->events->delete($this->config->item('google_calendar_id'), $event_id);
+            return true;
+        } catch (\Exception $exception) {
+            log_message('error', 'Report Distribution Google Calendar Error: ' . $exception->getMessage());
+            return false;
+        }
+    }
+
+    private function get_google_calendar_service()
+    {
+        if (!$this->config->item('google_calendar_enabled')) {
+            return null;
+        }
+
+        $credentials_path = $this->config->item('google_calendar_credentials');
+        $calendar_id = $this->config->item('google_calendar_id');
+        if ($credentials_path === '' || $calendar_id === '' || !is_readable($credentials_path)) {
+            log_message('error', 'Report Distribution Google Calendar Error: credentials or calendar ID is missing.');
+            return null;
+        }
+
+        try {
+            $client = new \Google\Client();
+            $client->setAuthConfig($credentials_path);
+            $client->setScopes(array(\Google\Service\Calendar::CALENDAR));
+            $subject = trim((string) $this->config->item('google_calendar_impersonate'));
+            if ($subject !== '') {
+                $client->setSubject($subject);
+            }
+            return new \Google\Service\Calendar($client);
+        } catch (\Exception $exception) {
+            log_message('error', 'Report Distribution Google Calendar Error: ' . $exception->getMessage());
+            return null;
+        }
+    }
+
+    private function get_google_meet_link($calendar, $event_id, $created_event = null)
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $event = $attempt === 0 ? $created_event : $calendar->events->get(
+                $this->config->item('google_calendar_id'),
+                $event_id
+            );
+            if ($event !== null && $event->getConferenceData() !== null) {
+                foreach ($event->getConferenceData()->getEntryPoints() ?: array() as $entry_point) {
+                    if ($entry_point->getEntryPointType() === 'video' && $entry_point->getUri() !== null) {
+                        return $entry_point->getUri();
+                    }
+                }
+            }
+            sleep(1);
+        }
+        return '';
+    }
+
+    private function send_booking_confirmation_email($recipient, $parent_name, $booking_code, $student_name,
+        $booking_type, $therapist_name, $start_time, $end_time, $distribution_date, $report_title, $semester,
+        $report_type, $gmeet_link)
+    {
+        $type_label = $booking_type === 'THERAPY' ? 'Therapy' : 'Without Therapy';
+        $message = $this->load->view('booking/email_confirmation', array(
+            'parent_name' => $parent_name,
+            'booking_code' => $booking_code,
+            'student_name' => $student_name,
+            'type_label' => $type_label,
+            'therapist_name' => $therapist_name,
+            'distribution_date' => $distribution_date,
+            'start_time' => $start_time,
+            'end_time' => $end_time,
+            'report_title' => $report_title,
+            'semester' => $semester,
+            'report_type' => $report_type,
+            'gmeet_link' => $gmeet_link
+        ), true);
+
+        $this->load->library('email');
+        $this->email->initialize(array(
+            'protocol' => $this->config->item('MAIL_MAILER'),
+            'smtp_host' => $this->config->item('MAIL_HOST'),
+            'smtp_port' => $this->config->item('MAIL_PORT'),
+            'smtp_user' => $this->config->item('MAIL_USERNAME'),
+            'smtp_pass' => $this->config->item('MAIL_PASSWORD'),
+            'smtp_crypto' => $this->config->item('MAIL_ENCRYPTION'),
+            'mailtype' => 'html',
+            'charset' => 'utf-8',
+            'wordwrap' => true,
+            'newline' => "\r\n",
+            'crlf' => "\r\n"
+        ));
+        $this->email->from(
+            $this->config->item('MAIL_FROM_ADDRESS'),
+            $this->config->item('MAIL_FROM_NAME')
+        );
+        $this->email->to($recipient);
+        $this->email->subject('Report Distribution Booking Confirmation - ' . $booking_code);
+        $this->email->message($message);
+
+        if (!$this->email->send()) {
+            log_message('error', 'Booking confirmation email failed for ' . $booking_code . ': ' .
+                $this->email->print_debugger(array('headers')));
+            return false;
+        }
+        if ($this->db->field_exists('confirmation_email_sent_at', 'report_distribution_bookings')) {
+            $this->db->where('booking_code', $booking_code)->update('report_distribution_bookings', array(
+                'confirmation_email_sent_at' => date('Y-m-d H:i:s')
+            ));
+        }
+        return true;
+    }
+
     public function success($booking_code = '')
     {
         $booking = $this->db->select('b.*, r.code AS report_code, r.title, r.report_type, r.semester, t.tahun AS tahun_label,
                 s.start_time, s.end_time, d.distribution_date, m.nama AS student_name,
-                m.nis AS student_nis')
+                m.nis AS student_nis, th.name AS therapist_name')
             ->from('report_distribution_bookings b')
             ->join('report_distributions r', 'r.id = b.report_distribution_id')
             ->join('tahun t', 't.id = r.tahun_id', 'left')
             ->join('report_distribution_sessions s', 's.id = b.session_id')
             ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
             ->join('m_siswa m', 'm.id = b.student_id')
+            ->join('therapists th', 'th.id = b.therapist_id', 'left')
             ->where('b.booking_code', $booking_code)
             ->where('b.status', 'BOOKED')
             ->get()->row_array();

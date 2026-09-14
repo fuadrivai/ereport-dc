@@ -25,15 +25,24 @@ $format_end = date('H:i', strtotime($booking['end_time']));
                 <div class="summary-row"><span class="summary-label">Attendance</span><span
                                 class="summary-value"><?= $booking['booking_type'] === 'THERAPY' ? 'Therapy' : 'Without Therapy' ?></span>
                 </div>
-                <div class="summary-row"><span class="summary-label">Therapist</span><span class="summary-value">Not
-                                assigned
-                                yet</span></div>
+                <?php if ($booking['booking_type'] === 'THERAPY') { ?>
+                <div class="summary-row"><span class="summary-label">Therapist</span><span
+                                class="summary-value"><?= html_escape($booking['therapist_name'] ?: 'Not assigned') ?></span>
+                </div>
+                <?php } ?>
         </div>
 
+        <?php if (!empty($booking['gmeet_link'])) { ?>
+        <div class="booking-actions" style="margin-top:24px">
+                <a class="btn btn-booking" href="<?= html_escape($booking['gmeet_link']) ?>" target="_blank"
+                        rel="noopener"><i class="fa fa-video-camera"></i> Join Google Meet</a>
+        </div>
+        <?php } else { ?>
+        <p class="booking-help" style="margin-top:24px">Your Google Meet link is being prepared.</p>
+        <?php } ?>
         <p class="booking-help" style="margin-top:24px">Please keep this booking code for your records.</p>
         <div class="booking-code"><?= html_escape($booking['booking_code']) ?></div>
         <div class="booking-actions" style="margin-top:28px">
-                <a class="btn btn-back" href="<?= site_url() ?>"><i class="fa fa-home"></i> Back to Home</a>
                 <a class="btn btn-booking"
                         href="<?= site_url('report-distribution/booking/' . rawurlencode($booking['report_code'])) ?>"><i
                                 class="fa fa-plus"></i> Book Another</a>

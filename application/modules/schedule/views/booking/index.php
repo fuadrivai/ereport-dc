@@ -42,7 +42,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                     without an active therapy assignment.</small></label>
         </div>
         <label class="booking-label" for="student_id">Student</label>
-        <select id="student_id" name="student_id" class="form-control" required></select>
+        <select id="student_id" name="student_id" class="form-control" required disabled></select>
         <p class="booking-help">Choose an attendance type first, then search by student name, NIS, or NISN.</p>
         <label class="booking-label" for="parent_name">Parent / Guardian Name</label>
         <input class="form-control" id="parent_name" name="parent_name" required>
@@ -91,6 +91,9 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 this date.</p><?php } ?>
         </div>
         <?php } ?>
+        <label class="booking-label" for="notes">Notes</label>
+        <textarea class="form-control" id="notes" name="notes" rows="3"
+            placeholder="Additional notes (optional)"></textarea>
     </section>
 
     <section class="wizard-panel" data-step="4">
@@ -110,8 +113,10 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                     id="summary-date">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Time</span><span class="summary-value"
                     id="summary-time">Not selected</span></div>
-            <div class="summary-row"><span class="summary-label">Attendance</span><span class="summary-value"
+            <div class="summary-row"><span class="summary-label">Attendance Type</span><span class="summary-value"
                     id="summary-type">Not selected</span></div>
+            <div class="summary-row"><span class="summary-label">Notes</span><span class="summary-value"
+                    id="summary-notes">Not provided</span></div>
         </div>
     </section>
 
@@ -147,6 +152,8 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             }
         });
 
+        $student.prop('disabled', !$('input[name="booking_type_choice"]:checked').val());
+
         function selectedSession() {
             return $('input[name="session_choice"]:checked');
         }
@@ -163,6 +170,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             $('#summary-parent').text($('#parent_name').val() || 'Not selected');
             $('#summary-type').text(type === 'THERAPY' ? 'Therapy' : (type === 'NON_THERAPY' ?
                 'Without Therapy' : 'Not selected'));
+            $('#summary-notes').text($('#notes').val().trim() || 'Not provided');
             $('#summary-time').text(session.length ? session.closest('label').find('.session-time').text() :
                 'Not selected');
             $('#summary-date').text($('input[name="date_id"]:checked').closest('label').find('strong').text() ||
@@ -276,6 +284,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         $('input[name="booking_type_choice"]').on('change', function () {
             $('.booking-type-card').removeClass('selected');
             $(this).closest('.booking-type-card').addClass('selected');
+            $student.prop('disabled', false);
             $student.removeData('student-grade');
             $student.removeData('homeroom-teacher');
             $student.removeData('principal-name');
@@ -294,6 +303,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         });
         $student.on('change', updateState);
         $('#parent_name').on('input', updateState);
+        $('#notes').on('input', updateState);
         $form.on('submit', function (event) {
             event.preventDefault();
             if (!validStep()) {

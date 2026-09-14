@@ -102,8 +102,99 @@ class Schedule extends CI_Controller
 
         $this->d['p'] = "schedule";
         $this->d['p_report'] =  $data;
+        $this->d['p_slots'] = array();
+        if (!empty($data)) {
+            $report_ids = array_column($data, 'id');
+            $slot_rows = $this->db->select("d.report_distribution_id, d.id AS date_id, d.distribution_date, d.label AS date_label,
+                    d.is_active AS date_active, s.id AS session_id, s.session_number, s.start_time, s.end_time,
+                    s.therapy_capacity, s.non_therapy_capacity,
+                    SUM(CASE WHEN b.booking_type = 'THERAPY' THEN 1 ELSE 0 END) AS therapy_booked,
+                    SUM(CASE WHEN b.booking_type = 'NON_THERAPY' THEN 1 ELSE 0 END) AS non_therapy_booked", false)
+                ->from('report_distribution_dates d')
+                ->join('report_distribution_sessions s', 's.report_distribution_date_id = d.id', 'left')
+                ->join('report_distribution_bookings b', "b.session_id = s.id AND b.status = 'BOOKED'", 'left', false)
+                ->where_in('d.report_distribution_id', $report_ids)
+                ->group_by(array(
+                    'd.report_distribution_id', 'd.id', 'd.distribution_date', 'd.label', 'd.is_active',
+                    's.id', 's.session_number', 's.start_time', 's.end_time',
+                    's.therapy_capacity', 's.non_therapy_capacity'
+                ))
+                ->order_by('d.distribution_date', 'ASC')
+                ->order_by('s.session_number', 'ASC')
+                ->get()->result_array();
+
+            foreach ($slot_rows as $slot_row) {
+                $this->d['p_slots'][$slot_row['report_distribution_id']][$slot_row['date_id']]['date'] = $slot_row;
+                if (!empty($slot_row['session_id'])) {
+                    $this->d['p_slots'][$slot_row['report_distribution_id']][$slot_row['date_id']]['sessions'][] = $slot_row;
+                }
+            }
+        }
         $this->d['p_tahun'] = $this->db->order_by('tahun', 'DESC')->get('tahun')->result_array();
         $this->load->view("template_utama", $this->d);
+    }
+
+    public function registration_list($report_id = 0)
+    {
+        $report = $this->db->select('r.*, t.tahun AS tahun_label')
+            ->from('report_distributions r')
+            ->join('tahun t', 't.id = r.tahun_id', 'left')
+            ->where('r.id', $report_id)
+            ->get()->row_array();
+        if (empty($report)) {
+            redirect('schedule/report');
+            return;
+        }
+
+        $rows = $this->db->select('d.id AS date_id, d.distribution_date, d.label AS date_label,
+                s.id AS session_id, s.session_number, s.start_time, s.end_time,
+                b.id AS booking_id, b.booking_type, b.gmeet_link, m.nama AS student_name,
+                k.nama AS class_name', false)
+            ->from('report_distribution_dates d')
+            ->join('report_distribution_sessions s', 's.report_distribution_date_id = d.id', 'left')
+            ->join('report_distribution_bookings b', "b.session_id = s.id AND b.status = 'BOOKED'", 'left', false)
+            ->join('m_siswa m', 'm.id = b.student_id', 'left')
+            ->join('t_kelas_siswa ks', 'ks.id_siswa = m.id AND ks.ta = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE id = ' . (int) $report['tahun_id'] . ' LIMIT 1)', 'left', false)
+            ->join('m_kelas k', 'k.id = ks.id_kelas', 'left')
+            ->where('d.report_distribution_id', $report['id'])
+            ->where('d.is_active', 1)
+            ->order_by('d.distribution_date', 'ASC')
+            ->order_by('s.session_number', 'ASC')
+            ->order_by('m.nama', 'ASC')
+            ->get()->result_array();
+
+        $dates = array();
+        foreach ($rows as $row) {
+            if (empty($row['session_id'])) {
+                continue;
+            }
+            $date_id = $row['date_id'];
+            $session_id = $row['session_id'];
+            if (!isset($dates[$date_id])) {
+                $dates[$date_id] = array(
+                    'distribution_date' => $row['distribution_date'],
+                    'date_label' => $row['date_label'],
+                    'sessions' => array()
+                );
+            }
+            if (!isset($dates[$date_id]['sessions'][$session_id])) {
+                $dates[$date_id]['sessions'][$session_id] = array(
+                    'session_number' => $row['session_number'],
+                    'start_time' => $row['start_time'],
+                    'end_time' => $row['end_time'],
+                    'THERAPY' => array(),
+                    'NON_THERAPY' => array()
+                );
+            }
+            if (!empty($row['booking_id'])) {
+                $dates[$date_id]['sessions'][$session_id][$row['booking_type']][] = $row;
+            }
+        }
+
+        $this->d['p'] = 'schedule_registration_list';
+        $this->d['report'] = $report;
+        $this->d['registration_dates'] = $dates;
+        $this->load->view('template_utama', $this->d);
     }
 
     public function edit($id = 0)
