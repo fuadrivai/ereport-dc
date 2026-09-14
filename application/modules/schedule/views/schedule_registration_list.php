@@ -25,17 +25,21 @@
                         </th>
                     </tr>
                     <tr>
-                        <th colspan="4" class="registration-therapy">With Psychologist From Mutiara Edu Sensory</th>
-                        <th colspan="4" class="registration-non-therapy">Without Therapist</th>
+                        <th colspan="4" class="registration-therapy">With Psychologist From Mutiara Edu Sensory
+                            (<?= array_sum(array_map(function ($session) { return count($session['THERAPY']); }, $date['sessions'])) ?>)
+                        </th>
+                        <th colspan="4" class="registration-non-therapy">Without Therapist
+                            (<?= array_sum(array_map(function ($session) { return count($session['NON_THERAPY']); }, $date['sessions'])) ?>)
+                        </th>
                     </tr>
                     <tr>
                         <th>Students Name</th>
                         <th>Class Name</th>
-                        <th>Google Meet</th>
+                        <th>Meet</th>
                         <th>Session Schedule</th>
                         <th>Students Name</th>
                         <th>Class Name</th>
-                        <th>Google Meet</th>
+                        <th>Meet</th>
                         <th>Session Schedule</th>
                     </tr>
                 </thead>
@@ -49,22 +53,30 @@
                             $non_therapy_booking = isset($non_therapy[$index]) ? $non_therapy[$index] : null;
                     ?>
                     <tr>
-                        <td><?= $therapy_booking ? html_escape($therapy_booking['student_name']) : '' ?></td>
+                        <?php if (count($therapy) <= 1) { ?>
+                        <?php if ($index === 0) { ?><td rowspan="<?= $total_rows ?>">
+                            <?= $therapy_booking ? html_escape($therapy_booking['student_name']) : '<span class="text-muted">Available</span>' ?>
+                        </td><?php } ?>
+                        <?php } else { ?><td>
+                            <?= $therapy_booking ? html_escape($therapy_booking['student_name']) : '' ?></td><?php } ?>
                         <td><?= $therapy_booking ? html_escape($therapy_booking['class_name']) : '' ?></td>
-                        <td><?php if (!empty($therapy_booking['gmeet_link'])) { ?><a class="gmeet-link"
-                                href="<?= html_escape($therapy_booking['gmeet_link']) ?>" target="_blank"
-                                rel="noopener"><?= html_escape($therapy_booking['gmeet_link']) ?></a><button
-                                type="button" class="btn btn-xs btn-default copy-gmeet-link"
+                        <td><?php if (!empty($therapy_booking['gmeet_link'])) { ?><a
+                                class="btn btn-xs btn-primary open-gmeet-link"
+                                href="<?= html_escape($therapy_booking['gmeet_link']) ?>" target="_blank" rel="noopener"
+                                title="Open Google Meet"><i class="fa fa-video-camera"></i></a><button type="button"
+                                class="btn btn-xs btn-default copy-gmeet-link"
                                 data-link="<?= html_escape($therapy_booking['gmeet_link']) ?>"
                                 title="Copy Google Meet link"><i class="fa fa-copy"></i></button><?php } ?></td>
                         <?php if ($index === 0) { ?><td rowspan="<?= $total_rows ?>" class="registration-session">Sesi
                             <?= html_escape($session['session_number']) ?><br><?= html_escape(date('H.i', strtotime($session['start_time']))) ?>-<?= html_escape(date('H.i', strtotime($session['end_time']))) ?>
                         </td><?php } ?>
-                        <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['student_name']) : '' ?></td>
+                        <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['student_name']) : ($index === 0 ? '<span class="text-muted">Available</span>' : '') ?>
+                        </td>
                         <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['class_name']) : '' ?></td>
-                        <td><?php if (!empty($non_therapy_booking['gmeet_link'])) { ?><a class="gmeet-link"
+                        <td><?php if (!empty($non_therapy_booking['gmeet_link'])) { ?><a
+                                class="btn btn-xs btn-primary open-gmeet-link"
                                 href="<?= html_escape($non_therapy_booking['gmeet_link']) ?>" target="_blank"
-                                rel="noopener"><?= html_escape($non_therapy_booking['gmeet_link']) ?></a><button
+                                rel="noopener" title="Open Google Meet"><i class="fa fa-video-camera"></i></a><button
                                 type="button" class="btn btn-xs btn-default copy-gmeet-link"
                                 data-link="<?= html_escape($non_therapy_booking['gmeet_link']) ?>"
                                 title="Copy Google Meet link"><i class="fa fa-copy"></i></button><?php } ?></td>
@@ -81,6 +93,13 @@
 </div>
 
 <style>
+    .registration-list-wrapper {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: auto;
+    }
+
     .registration-list-table {
         min-width: 900px;
         color: #000;
@@ -98,9 +117,16 @@
         font-size: 15px;
     }
 
-    .registration-therapy,
+    .registration-therapy {
+        font-weight: 700;
+        background: #f6e6e6;
+        color: #800000;
+    }
+
     .registration-non-therapy {
         font-weight: 700;
+        background: #e8f0f4;
+        color: #28536b;
     }
 
     .registration-session {
@@ -108,17 +134,10 @@
         line-height: 1.3;
     }
 
-    .gmeet-link {
-        display: inline-block;
-        max-width: calc(100% - 32px);
-        margin-right: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        vertical-align: middle;
-        white-space: nowrap;
+    .open-gmeet-link,
+    .copy-gmeet-link {
+        min-width: 28px;
     }
-
-    @mediaprint{ .main-panel > .content > .container-fluid > .row > [class*="col-"] { width: 100%; } .sidebar, .navbar, .panel { display: none    !important; } .card { box-shadow: none; } }
 </style>
 
 <script>
