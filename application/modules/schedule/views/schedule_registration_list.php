@@ -60,7 +60,8 @@
                         <?php } else { ?><td>
                             <?= $therapy_booking ? html_escape($therapy_booking['student_name']) : '' ?></td><?php } ?>
                         <td><?= $therapy_booking ? html_escape($therapy_booking['class_name']) : '' ?></td>
-                        <td><?php if (!empty($therapy_booking['gmeet_link'])) { ?><a
+                        <td><?php if ($therapy_booking) { ?><span
+                                class="collection-method-label <?= $therapy_booking['report_collection_method'] === 'ONLINE' ? 'collection-method-online' : 'collection-method-onsite' ?>"><?= $therapy_booking['report_collection_method'] === 'ONLINE' ? 'Online' : 'Onsite' ?></span><?php } ?><?php if (!empty($therapy_booking['gmeet_link'])) { ?><a
                                 class="btn btn-xs btn-primary open-gmeet-link"
                                 href="<?= html_escape($therapy_booking['gmeet_link']) ?>" target="_blank" rel="noopener"
                                 title="Open Google Meet"><i class="fa fa-video-camera"></i></a><button type="button"
@@ -73,7 +74,8 @@
                         <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['student_name']) : ($index === 0 ? '<span class="text-muted">Available</span>' : '') ?>
                         </td>
                         <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['class_name']) : '' ?></td>
-                        <td><?php if (!empty($non_therapy_booking['gmeet_link'])) { ?><a
+                        <td><?php if ($non_therapy_booking) { ?><span
+                                class="collection-method-label <?= $non_therapy_booking['report_collection_method'] === 'ONLINE' ? 'collection-method-online' : 'collection-method-onsite' ?>"><?= $non_therapy_booking['report_collection_method'] === 'ONLINE' ? 'Online' : 'Onsite' ?></span><?php } ?><?php if (!empty($non_therapy_booking['gmeet_link'])) { ?><a
                                 class="btn btn-xs btn-primary open-gmeet-link"
                                 href="<?= html_escape($non_therapy_booking['gmeet_link']) ?>" target="_blank"
                                 rel="noopener" title="Open Google Meet"><i class="fa fa-video-camera"></i></a><button
@@ -137,6 +139,26 @@
     .open-gmeet-link,
     .copy-gmeet-link {
         min-width: 28px;
+    }
+
+    .collection-method-label {
+        display: inline-block;
+        margin-bottom: 5px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .collection-method-online {
+        background: #d9edf7;
+        color: #176b87;
+    }
+
+    .collection-method-onsite {
+        background: #dff0d8;
+        color: #3c763d;
     }
 </style>
 

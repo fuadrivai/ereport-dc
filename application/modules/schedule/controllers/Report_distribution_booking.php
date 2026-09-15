@@ -176,12 +176,14 @@ class Report_distribution_booking extends CI_Controller
         $parent_name = trim((string) $this->input->post('parent_name'));
         $parent_email = trim((string) $this->input->post('parent_email'));
         $parent_phone = trim((string) $this->input->post('parent_phone'));
+        $report_collection_method = strtoupper(trim((string) $this->input->post('report_collection_method')));
         $notes = trim((string) $this->input->post('notes'));
 
         if ($code === '' || $student_id === '' || $session_id === '' ||
             $parent_name === '' || $parent_phone === '' ||
             !filter_var($parent_email, FILTER_VALIDATE_EMAIL) ||
-            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
+            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true) ||
+            !in_array($report_collection_method, array('ONLINE', 'ONSITE'), true)) {
             $this->json(array('status' => 'error', 'message' => 'Please complete all required booking fields.'));
             return;
         }
@@ -291,6 +293,7 @@ class Report_distribution_booking extends CI_Controller
             'parent_email' => $parent_email,
             'parent_phone' => $parent_phone,
             'booking_type' => $booking_type,
+            'report_collection_method' => $report_collection_method,
             'therapist_id' => $booking_type === 'THERAPY' ? $student_therapist['therapist_id'] : null,
             'status' => 'BOOKED',
             'booked_at' => date('Y-m-d H:i:s'),
@@ -335,6 +338,13 @@ class Report_distribution_booking extends CI_Controller
             if (!$calendar_saved) {
                 log_message('error', 'Google Calendar event ID could not be saved for booking ' . $booking_code . ': ' .
                     $this->db->error()['message']);
+            } elseif (!empty($calendar_event['gmeet_link'])) {
+                $co_host_results = $this->add_google_meet_co_hosts(
+                    $booking_code,
+                    $calendar_event['event_id'],
+                    $calendar_event['gmeet_link']
+                );
+                $calendar_event['co_hosts'] = $co_host_results;
             }
         } else {
             log_message('error', 'Google Calendar did not return an event ID for booking ' . $booking_code . '.');
@@ -421,6 +431,15 @@ class Report_distribution_booking extends CI_Controller
             $description .= "\nTherapist: " . $therapist_name;
         }
         $description .= "\n\nPlease join Google Meet at the scheduled time.";
+            $attendees = array();
+            $co_hosts = $this->config->item('google_meet_co_hosts');
+            foreach (is_array($co_hosts) ? $co_hosts : array() as $co_host_email) {
+                $co_host_email = trim((string) $co_host_email);
+                if (filter_var($co_host_email, FILTER_VALIDATE_EMAIL)) {
+                    $attendees[strtolower($co_host_email)] = array('email' => $co_host_email);
+                }
+        }
+            $attendees = array_values($attendees);
 
         try {
             $timezone = $this->config->item('google_calendar_timezone') ?: 'Asia/Jakarta';
@@ -430,7 +449,7 @@ class Report_distribution_booking extends CI_Controller
             $event = new \Google\Service\Calendar\Event(array(
                 'summary' => 'Report Distribution - ' . $student_name,
                 'description' => $description,
-                'attendees' => array(array('email' => $attendee_email)),
+                'attendees' => $attendees,
                 'start' => array('dateTime' => $start_datetime->format('c'), 'timeZone' => $timezone),
                 'end' => array('dateTime' => $end_datetime->format('c'), 'timeZone' => $timezone),
                 'conferenceData' => array('createRequest' => array(
@@ -440,9 +459,11 @@ class Report_distribution_booking extends CI_Controller
             ));
             $created_event = $calendar->events->insert($this->config->item('google_calendar_id'), $event, array(
                 'conferenceDataVersion' => 1,
-                'sendUpdates' => 'none'
+                'sendUpdates' => 'all'
             ));
             $event_id = $created_event->getId();
+            log_message('info', 'Report Distribution Calendar Event created: event_id=' . $event_id .
+                 ' co_host_attendees=' . implode(',', array_column($attendees, 'email')));
             try {
                 $gmeet_link = $this->get_google_meet_link($calendar, $event_id, $created_event);
             } catch (\Exception $exception) {
@@ -501,28 +522,39 @@ class Report_distribution_booking extends CI_Controller
 
     private function get_google_calendar_service()
     {
+        $calendar_id = $this->config->item('google_calendar_id');
+        if ($calendar_id === '') {
+            log_message('error', 'Report Distribution Google Calendar Error: calendar ID is missing.');
+            return null;
+        }
+
+        $client = $this->get_google_api_client(array(\Google\Service\Calendar::CALENDAR));
+        return $client === null ? null : new \Google\Service\Calendar($client);
+    }
+
+    private function get_google_api_client(array $scopes)
+    {
         if (!$this->config->item('google_calendar_enabled')) {
             return null;
         }
 
         $credentials_path = $this->config->item('google_calendar_credentials');
-        $calendar_id = $this->config->item('google_calendar_id');
-        if ($credentials_path === '' || $calendar_id === '' || !is_readable($credentials_path)) {
-            log_message('error', 'Report Distribution Google Calendar Error: credentials or calendar ID is missing.');
+        if ($credentials_path === '' || !is_readable($credentials_path)) {
+            log_message('error', 'Report Distribution Google API Error: credentials are missing.');
             return null;
         }
 
         try {
             $client = new \Google\Client();
             $client->setAuthConfig($credentials_path);
-            $client->setScopes(array(\Google\Service\Calendar::CALENDAR));
+            $client->setScopes($scopes);
             $subject = trim((string) $this->config->item('google_calendar_impersonate'));
             if ($subject !== '') {
                 $client->setSubject($subject);
             }
-            return new \Google\Service\Calendar($client);
+            return $client;
         } catch (\Exception $exception) {
-            log_message('error', 'Report Distribution Google Calendar Error: ' . $exception->getMessage());
+            log_message('error', 'Report Distribution Google API Error: ' . $exception->getMessage());
             return null;
         }
     }
@@ -544,6 +576,183 @@ class Report_distribution_booking extends CI_Controller
             sleep(1);
         }
         return '';
+    }
+
+    private function add_google_meet_co_hosts($booking_code, $calendar_event_id, $gmeet_link)
+    {
+        $co_hosts = $this->config->item('google_meet_co_hosts');
+        if (empty($co_hosts) || !is_array($co_hosts)) {
+            return array();
+        }
+
+        $results = array();
+        $client = $this->get_google_api_client(array(
+            'https://www.googleapis.com/auth/meetings.space.created'
+        ));
+        if ($client === null) {
+            foreach ($co_hosts as $email) {
+                $results[] = array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+                    'message' => 'Google Meet API client could not be initialized.');
+            }
+            return $results;
+        }
+
+        try {
+            $http = $client->authorize();
+            $space_name = $this->resolve_google_meet_space($http, $gmeet_link);
+            if ($space_name === '') {
+                foreach ($co_hosts as $email) {
+                    $result = array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+                        'message' => $this->google_meet_space_error);
+                    $results[] = $result;
+                    $this->log_google_meet_co_host_result($booking_code, $calendar_event_id, $gmeet_link, '', $result);
+                }
+                return $results;
+            }
+
+            $existing_members = $this->get_google_meet_members($http, $space_name);
+            foreach ($co_hosts as $email) {
+                $email = trim((string) $email);
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $result = array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+                        'message' => 'Invalid co-host email in configuration.');
+                } elseif (isset($existing_members[strtolower($email)]) &&
+                    $existing_members[strtolower($email)]['role'] === 'COHOST') {
+                    $result = array('email' => $email, 'role' => 'COHOST', 'status' => 'ALREADY_COHOST',
+                        'message' => 'Member already has the COHOST role.');
+                } elseif (isset($existing_members[strtolower($email)])) {
+                    $result = $this->promote_google_meet_member(
+                        $http,
+                        $existing_members[strtolower($email)]['name'],
+                        $email
+                    );
+                } else {
+                    $result = $this->create_google_meet_co_host($http, $space_name, $email);
+                }
+                $results[] = $result;
+                $this->log_google_meet_co_host_result($booking_code, $calendar_event_id, $gmeet_link, $space_name, $result);
+            }
+
+            return $this->verify_google_meet_co_hosts($http, $space_name, $results);
+        } catch (\Exception $exception) {
+            foreach ($co_hosts as $email) {
+                $result = array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+                    'message' => $exception->getMessage());
+                $results[] = $result;
+                $this->log_google_meet_co_host_result($booking_code, $calendar_event_id, $gmeet_link, '', $result);
+            }
+            return $results;
+        }
+    }
+
+    private function resolve_google_meet_space($http, $gmeet_link)
+    {
+        $this->google_meet_space_error = '';
+        $parts = parse_url($gmeet_link);
+        $meeting_code = !empty($parts['path']) ? trim($parts['path'], '/') : '';
+        if (empty($parts['host']) || strtolower($parts['host']) !== 'meet.google.com' ||
+            !preg_match('/^[a-z]+-[a-z]+-[a-z]+$/i', $meeting_code)) {
+            $this->google_meet_space_error = 'The Calendar-provided Google Meet URL does not contain a valid meeting code.';
+            return '';
+        }
+
+        $response = $http->request('GET', 'https://meet.googleapis.com/v2/spaces/' . rawurlencode($meeting_code), array(
+            'http_errors' => false
+        ));
+        if ($response->getStatusCode() !== 200) {
+            $this->google_meet_space_error = $this->get_google_meet_api_error($response);
+            return '';
+        }
+        $space = json_decode((string) $response->getBody(), true);
+        if (empty($space['name']) || strpos($space['name'], 'spaces/') !== 0) {
+            $this->google_meet_space_error = 'The Google Meet API response did not include a space resource name.';
+            return '';
+        }
+        return $space['name'];
+    }
+
+    private function get_google_meet_members($http, $space_name)
+    {
+        $this->google_meet_members_error = '';
+        $response = $http->request('GET', 'https://meet.googleapis.com/v2/' . $space_name . '/members?pageSize=100', array(
+            'http_errors' => false
+        ));
+        if ($response->getStatusCode() !== 200) {
+            $this->google_meet_members_error = $this->get_google_meet_api_error($response);
+            return array();
+        }
+        $members = array();
+        $body = json_decode((string) $response->getBody(), true);
+        foreach (!empty($body['members']) ? $body['members'] : array() as $member) {
+            if (!empty($member['email'])) {
+                $members[strtolower($member['email'])] = $member;
+            }
+        }
+        return $members;
+    }
+
+    private function create_google_meet_co_host($http, $space_name, $email)
+    {
+        $response = $http->request('POST', 'https://meet.googleapis.com/v2/' . $space_name . '/members', array(
+            'http_errors' => false,
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => json_encode(array('email' => $email, 'role' => 'COHOST'))
+        ));
+        if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+            return array('email' => $email, 'role' => 'COHOST', 'status' => 'SUCCESS', 'message' => 'Co-host added.');
+        }
+        return array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+            'message' => $this->get_google_meet_api_error($response));
+    }
+
+    private function promote_google_meet_member($http, $member_name, $email)
+    {
+        $response = $http->request('PATCH', 'https://meet.googleapis.com/v2/' . $member_name . '?updateMask=role', array(
+            'http_errors' => false,
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => json_encode(array('name' => $member_name, 'role' => 'COHOST'))
+        ));
+        if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+            return array('email' => $email, 'role' => 'COHOST', 'status' => 'SUCCESS', 'message' => 'Member promoted to co-host.');
+        }
+        return array('email' => $email, 'role' => 'COHOST', 'status' => 'FAILED',
+            'message' => $this->get_google_meet_api_error($response));
+    }
+
+    private function verify_google_meet_co_hosts($http, $space_name, array $results)
+    {
+        $members = $this->get_google_meet_members($http, $space_name);
+        $verification_error = $this->google_meet_members_error;
+        foreach ($results as &$result) {
+            $email = strtolower($result['email']);
+            if (isset($members[$email]) && $members[$email]['role'] === 'COHOST') {
+                $result['verified'] = true;
+            } elseif ($result['status'] !== 'FAILED') {
+                $result['status'] = 'FAILED';
+                $result['verified'] = false;
+                $result['message'] = $verification_error !== '' ? $verification_error :
+                    'Co-host role could not be verified.';
+            }
+        }
+        unset($result);
+        return $results;
+    }
+
+    private function get_google_meet_api_error($response)
+    {
+        $body = json_decode((string) $response->getBody(), true);
+        $error = !empty($body['error']) ? $body['error'] : array();
+        return 'HTTP ' . $response->getStatusCode() . ' code=' . (!empty($error['code']) ? $error['code'] : '') .
+            ' reason=' . (!empty($error['status']) ? $error['status'] : '') .
+            ' message=' . (!empty($error['message']) ? $error['message'] : 'Unknown Google Meet API error.');
+    }
+
+    private function log_google_meet_co_host_result($booking_code, $calendar_event_id, $gmeet_link, $space_name, array $result)
+    {
+        log_message($result['status'] === 'FAILED' ? 'error' : 'info', 'Google Meet co-host result: booking_code=' .
+            $booking_code . ' calendar_event_id=' . $calendar_event_id . ' meet_url=' . $gmeet_link .
+            ' meet_space=' . $space_name . ' co_host_email=' . $result['email'] .
+            ' status=' . $result['status'] . ' message=' . $result['message']);
     }
 
     private function send_booking_confirmation_email($recipient, $parent_name, $booking_code, $student_name,

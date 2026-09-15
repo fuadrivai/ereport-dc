@@ -97,6 +97,16 @@
                         <textarea name="description" id="description" class="form-control" rows="3"
                             required><?= html_escape($data['description']) ?></textarea>
                     </div>
+                    <div class="form-group">
+                        <label for="sheetId" class="control-label">Spreadsheet Link</label>
+                        <input type="url" name="sheetId" id="sheetId" class="form-control"
+                            value="<?= html_escape($data['sheetId']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sheetName" class="control-label">Sheet Name</label>
+                        <input type="text" name="sheetName" id="sheetName" class="form-control"
+                            value="<?= html_escape($data['sheetName']) ?>" required>
+                    </div>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                     <a href="<?= base_url($url . '/report') ?>" class="btn btn-default">Kembali</a>
                 </form>

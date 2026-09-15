@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `report_distribution_bookings` (
     `session_id` INT NOT NULL,
     `student_id` INT NOT NULL,
     `booking_type` ENUM('THERAPY', 'NON_THERAPY') NOT NULL,
+    `report_collection_method` ENUM('ONLINE', 'ONSITE') NOT NULL,
     `therapist_id` INT NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'BOOKED',
     `booked_at` DATETIME NOT NULL,

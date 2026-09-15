@@ -50,6 +50,8 @@
                                         target="_blank" rel="noopener"><i class="fa fa-link"></i> Booking Page</a></li>
                                 <li><a href="<?= base_url('schedule/registration-list/' . html_escape($d['id'])) ?>"><i
                                             class="fa fa-list"></i> Registered Students</a></li>
+                                <li><a href="<?= base_url('schedule/booking-management/' . html_escape($d['id'])) ?>"><i
+                                            class="fa fa-calendar-check-o"></i> Manage Bookings</a></li>
                                 <li><a href="#modal_slots_<?= html_escape($d['id']) ?>" data-toggle="modal"><i
                                             class="fa fa-clock-o"></i> Slot</a></li>
                                 <li role="separator" class="divider"></li>

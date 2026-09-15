@@ -91,6 +91,15 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 this date.</p><?php } ?>
         </div>
         <?php } ?>
+        <label class="booking-label">Report Collection Method</label>
+        <div class="booking-type-grid" role="radiogroup">
+            <label class="choice-card collection-method-card"><input type="radio" name="report_collection_method"
+                    value="ONLINE" required><i class="fa fa-video-camera"></i><strong>Online</strong><small>Receive
+                    the report online.</small></label>
+            <label class="choice-card collection-method-card"><input type="radio" name="report_collection_method"
+                    value="ONSITE" required><i class="fa fa-building-o"></i><strong>Onsite</strong><small>Collect the
+                    report at school.</small></label>
+        </div>
         <label class="booking-label" for="notes">Notes</label>
         <textarea class="form-control" id="notes" name="notes" rows="3"
             placeholder="Additional notes (optional)"></textarea>
@@ -115,6 +124,8 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                     id="summary-time">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Attendance Type</span><span class="summary-value"
                     id="summary-type">Not selected</span></div>
+            <div class="summary-row"><span class="summary-label">Report Collection</span><span class="summary-value"
+                    id="summary-collection-method">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Notes</span><span class="summary-value"
                     id="summary-notes">Not provided</span></div>
         </div>
@@ -160,7 +171,8 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
 
         function updateState() {
             var session = selectedSession(),
-                type = $('input[name="booking_type_choice"]:checked').val() || '';
+                type = $('input[name="booking_type_choice"]:checked').val() || '',
+                collectionMethod = $('input[name="report_collection_method"]:checked').val() || '';
             $('#session_id').val(session.data('session-id') || '');
             $('#booking_type').val(type);
             $('#summary-student').text($student.find('option:selected').text() || 'Not selected');
@@ -170,6 +182,8 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             $('#summary-parent').text($('#parent_name').val() || 'Not selected');
             $('#summary-type').text(type === 'THERAPY' ? 'Therapy' : (type === 'NON_THERAPY' ?
                 'Without Therapy' : 'Not selected'));
+            $('#summary-collection-method').text(collectionMethod === 'ONLINE' ? 'Online' :
+                (collectionMethod === 'ONSITE' ? 'Onsite' : 'Not selected'));
             $('#summary-notes').text($('#notes').val().trim() || 'Not provided');
             $('#summary-time').text(session.length ? session.closest('label').find('.session-time').text() :
                 'Not selected');
@@ -202,7 +216,8 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 var session = selectedSession(),
                     type = $('input[name="booking_type_choice"]:checked').val(),
                     left = type === 'THERAPY' ? session.data('therapy-left') : session.data('non-therapy-left');
-                return session.length > 0 && (left === '' || parseInt(left, 10) > 0);
+                return session.length > 0 && (left === '' || parseInt(left, 10) > 0) && !!$(
+                    'input[name="report_collection_method"]:checked').val();
             }
             return true;
         }
@@ -215,6 +230,10 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             var session = selectedSession();
             if (!session.length) {
                 return 'Please select a time slot before continuing.';
+            }
+
+            if (!$('input[name="report_collection_method"]:checked').val()) {
+                return 'Please select how you will receive the report before continuing.';
             }
 
             var type = $('input[name="booking_type_choice"]:checked').val(),
@@ -279,6 +298,11 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         $('input[name="session_choice"]').on('change', function () {
             $('.session-choice').removeClass('selected');
             $(this).closest('.session-choice').addClass('selected');
+            updateState();
+        });
+        $('input[name="report_collection_method"]').on('change', function () {
+            $('.collection-method-card').removeClass('selected');
+            $(this).closest('.collection-method-card').addClass('selected');
             updateState();
         });
         $('input[name="booking_type_choice"]').on('change', function () {

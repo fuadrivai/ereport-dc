@@ -148,7 +148,7 @@ class Schedule extends CI_Controller
 
         $rows = $this->db->select('d.id AS date_id, d.distribution_date, d.label AS date_label,
                 s.id AS session_id, s.session_number, s.start_time, s.end_time,
-                b.id AS booking_id, b.booking_type, b.gmeet_link, m.nama AS student_name,
+            b.id AS booking_id, b.booking_type, b.report_collection_method, b.gmeet_link, m.nama AS student_name,
                 k.nama AS class_name', false)
             ->from('report_distribution_dates d')
             ->join('report_distribution_sessions s', 's.report_distribution_date_id = d.id', 'left')
@@ -197,6 +197,178 @@ class Schedule extends CI_Controller
         $this->load->view('template_utama', $this->d);
     }
 
+        public function booking_management($report_id = 0)
+        {
+                if (!cek_hak_akses($this->d['admlevel'], array('admin'))) {
+                    redirect('unauthorized_access');
+                    return;
+                }
+
+            $query = $this->db->select('b.*, r.title AS report_title, d.distribution_date, d.label AS date_label,
+                    s.session_number, s.start_time, s.end_time, m.nama AS student_name', false)
+                ->from('report_distribution_bookings b')
+                ->join('report_distributions r', 'r.id = b.report_distribution_id')
+                ->join('report_distribution_sessions s', 's.id = b.session_id')
+                ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
+                ->join('m_siswa m', 'm.id = b.student_id')
+                ->order_by('d.distribution_date', 'ASC')
+                ->order_by('s.start_time', 'ASC')
+                    ->order_by('m.nama', 'ASC');
+                if ($report_id > 0) {
+                    $query->where('b.report_distribution_id', (int) $report_id);
+                }
+                $bookings = $query->get()->result_array();
+
+            $slots = $this->get_booking_slots();
+            $this->d['p'] = 'booking_management';
+            $this->d['bookings'] = $bookings;
+            $this->d['slots'] = $slots;
+            $this->load->view('template_utama', $this->d);
+        }
+
+        public function update_booking()
+        {
+                if (!cek_hak_akses($this->d['admlevel'], array('admin'))) {
+                    j(array('status' => 'gagal', 'data' => 'Anda tidak memiliki akses untuk mengubah booking'));
+                    return;
+                }
+
+            $booking_id = (int) $this->input->post('booking_id');
+            $action = $this->input->post('action');
+            $booking = $this->db->where('id', $booking_id)->where('status', 'BOOKED')
+                ->get('report_distribution_bookings')->row_array();
+            if (empty($booking)) {
+                j(array('status' => 'gagal', 'data' => 'Booking aktif tidak ditemukan'));
+                return;
+            }
+
+            if ($action === 'cancel') {
+                    if (!empty($booking['google_calendar_event_id']) &&
+                        !$this->delete_booking_calendar_event($booking['google_calendar_event_id'])) {
+                        j(array('status' => 'gagal', 'data' => 'Event Google Calendar gagal dihapus. Booking tidak dibatalkan.'));
+                        return;
+                    }
+                $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')->update(
+                        'report_distribution_bookings', array(
+                            'status' => 'CANCELLED',
+                            'cancelled_at' => date('Y-m-d H:i:s'),
+                            'google_calendar_event_id' => null,
+                            'gmeet_link' => null
+                        )
+                );
+                j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Booking berhasil dibatalkan' : 'Booking gagal dibatalkan'));
+                return;
+            }
+
+            if ($action === 'complete') {
+                $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')->update(
+                    'report_distribution_bookings', array('status' => 'COMPLETED', 'completed_at' => date('Y-m-d H:i:s'))
+                );
+                j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Kedatangan berhasil dikonfirmasi' : 'Kedatangan gagal dikonfirmasi'));
+                return;
+            }
+
+            $session_id = (int) $this->input->post('session_id');
+            $session = $this->db->select('s.*, d.report_distribution_id, d.is_active')
+                ->from('report_distribution_sessions s')
+                ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
+                ->where('s.id', $session_id)->where('s.is_active', 1)->where('d.is_active', 1)
+                ->get()->row_array();
+            if ($action !== 'reschedule' || empty($session) || (int) $session['report_distribution_id'] !== (int) $booking['report_distribution_id']) {
+                j(array('status' => 'gagal', 'data' => 'Tanggal atau jam tujuan tidak valid'));
+                return;
+            }
+
+            $capacity_column = $booking['booking_type'] === 'THERAPY' ? 'therapy_capacity' : 'non_therapy_capacity';
+            $booked = $this->db->where('session_id', $session_id)->where('booking_type', $booking['booking_type'])
+                ->where('status', 'BOOKED')->where('id !=', $booking_id)->count_all_results('report_distribution_bookings');
+            if ($booked >= (int) $session[$capacity_column]) {
+                j(array('status' => 'gagal', 'data' => 'Kuota sesi tujuan sudah penuh'));
+                return;
+            }
+
+            $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')
+                ->update('report_distribution_bookings', array('session_id' => $session_id));
+            j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Jadwal booking berhasil diubah' : 'Jadwal booking gagal diubah'));
+        }
+
+        public function delete_booking()
+        {
+            if (!cek_hak_akses($this->d['admlevel'], array('admin'))) {
+                j(array('status' => 'gagal', 'data' => 'Anda tidak memiliki akses untuk menghapus booking'));
+                return;
+            }
+
+            $booking_id = (int) $this->input->post('booking_id');
+            $booking = $this->db->where('id', $booking_id)->get('report_distribution_bookings')->row_array();
+            if (empty($booking)) {
+                j(array('status' => 'gagal', 'data' => 'Data booking tidak ditemukan'));
+                return;
+            }
+
+            if ($booking['status'] === 'BOOKED' && !empty($booking['google_calendar_event_id']) &&
+                !$this->delete_booking_calendar_event($booking['google_calendar_event_id'])) {
+                j(array('status' => 'gagal', 'data' => 'Event Google Calendar gagal dihapus. Data booking tidak dihapus.'));
+                return;
+            }
+
+            $deleted = $this->db->where('id', $booking_id)->delete('report_distribution_bookings');
+            j(array(
+                'status' => $deleted ? 'ok' : 'gagal',
+                'data' => $deleted ? 'Data booking berhasil dihapus' : 'Data booking gagal dihapus'
+            ));
+        }
+
+        private function get_booking_slots()
+        {
+            $rows = $this->db->select('s.id, d.report_distribution_id, d.distribution_date, d.label AS date_label,
+                    s.session_number, s.start_time, s.end_time, s.therapy_capacity, s.non_therapy_capacity', false)
+                ->from('report_distribution_sessions s')
+                ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
+                ->where('s.is_active', 1)->where('d.is_active', 1)
+                ->order_by('d.distribution_date', 'ASC')->order_by('s.start_time', 'ASC')
+                ->get()->result_array();
+            $slots = array();
+            foreach ($rows as $row) {
+                $slots[$row['report_distribution_id']][] = $row;
+            }
+            return $slots;
+        }
+
+        private function delete_booking_calendar_event($event_id)
+        {
+            if (!$this->config->item('google_calendar_enabled')) {
+                log_message('error', 'Booking cancellation Calendar Error: Google Calendar is disabled.');
+                return false;
+            }
+
+            $credentials_path = $this->config->item('google_calendar_credentials');
+            $calendar_id = $this->config->item('google_calendar_id');
+            if ($credentials_path === '' || !is_readable($credentials_path) || $calendar_id === '') {
+                log_message('error', 'Booking cancellation Calendar Error: Calendar credentials or ID is missing.');
+                return false;
+            }
+
+            try {
+                $client = new \Google\Client();
+                $client->setAuthConfig($credentials_path);
+                $client->setScopes(array(\Google\Service\Calendar::CALENDAR));
+                $subject = trim((string) $this->config->item('google_calendar_impersonate'));
+                if ($subject !== '') {
+                    $client->setSubject($subject);
+                }
+                $calendar = new \Google\Service\Calendar($client);
+                $calendar->events->delete($calendar_id, $event_id);
+                return true;
+            } catch (\Exception $exception) {
+                if (in_array((int) $exception->getCode(), array(404, 410), true)) {
+                    return true;
+                }
+                log_message('error', 'Booking cancellation Calendar Error: ' . $exception->getMessage());
+                return false;
+            }
+        }
+
     public function edit($id = 0)
     {
         $data = array(
@@ -207,6 +379,8 @@ class Schedule extends CI_Controller
             'report_type' => '',
             'title' => '',
             'description' => '',
+            'sheetId' => '',
+            'sheetName' => '',
             'status' => '',
             'booking_start_at' => '',
             'booking_end_at' => ''
@@ -248,6 +422,8 @@ class Schedule extends CI_Controller
             'report_type' => isset($post['report_type']) ? trim($post['report_type']) : '',
             'title' => isset($post['title']) ? trim($post['title']) : '',
             'description' => isset($post['description']) ? trim($post['description']) : '',
+            'sheetId' => isset($post['sheetId']) ? trim($post['sheetId']) : '',
+            'sheetName' => isset($post['sheetName']) ? trim($post['sheetName']) : '',
             'status' => isset($post['status']) ? trim($post['status']) : '',
             'booking_start_at' => isset($post['booking_start_at']) ? trim($post['booking_start_at']) : '',
             'booking_end_at' => isset($post['booking_end_at']) ? trim($post['booking_end_at']) : ''
