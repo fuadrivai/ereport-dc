@@ -205,13 +205,18 @@ class Schedule extends CI_Controller
                     return;
                 }
 
+            $report = $report_id > 0 ? $this->db->select('title')->where('id', (int) $report_id)
+                ->get('report_distributions')->row_array() : array();
+
             $query = $this->db->select('b.*, r.title AS report_title, d.distribution_date, d.label AS date_label,
-                    s.session_number, s.start_time, s.end_time, m.nama AS student_name', false)
+                    s.session_number, s.start_time, s.end_time, m.nama AS student_name, k.nama AS student_grade', false)
                 ->from('report_distribution_bookings b')
                 ->join('report_distributions r', 'r.id = b.report_distribution_id')
                 ->join('report_distribution_sessions s', 's.id = b.session_id')
                 ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
                 ->join('m_siswa m', 'm.id = b.student_id')
+                ->join('t_kelas_siswa ks', 'ks.id_siswa = m.id AND ks.ta = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE id = r.tahun_id LIMIT 1)', 'left', false)
+                ->join('m_kelas k', 'k.id = ks.id_kelas', 'left')
                 ->order_by('d.distribution_date', 'ASC')
                 ->order_by('s.start_time', 'ASC')
                     ->order_by('m.nama', 'ASC');
@@ -224,6 +229,11 @@ class Schedule extends CI_Controller
             $this->d['p'] = 'booking_management';
             $this->d['bookings'] = $bookings;
             $this->d['slots'] = $slots;
+            $this->d['grades'] = $this->db->select('nama')->order_by('nama', 'ASC')->get('m_kelas')->result_array();
+            $this->d['dates'] = $report_id > 0 ? $this->db->select('distribution_date, label')
+                ->where('report_distribution_id', (int) $report_id)
+                ->order_by('distribution_date', 'ASC')->get('report_distribution_dates')->result_array() : array();
+            $this->d['report_title'] = !empty($report['title']) ? $report['title'] : 'Manage Report Distribution Bookings';
             $this->load->view('template_utama', $this->d);
         }
 
