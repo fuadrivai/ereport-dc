@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once FCPATH . 'vendor/autoload.php';
+
 class Report_distribution_booking extends CI_Controller
 {
     public function __construct()
