@@ -312,6 +312,7 @@ class Report_distribution_booking extends CI_Controller
                 ? null : max(0, (int) $session['non_therapy_capacity'] - $non_therapy_booked);
             $response_sessions[] = array(
                 'id' => $session['id'],
+                'session_number' => $session['session_number'],
                 'date_id' => $session['report_distribution_date_id'],
                 'display_start' => date('H:i', strtotime($session['start_time'])),
                 'display_end' => date('H:i', strtotime($session['end_time'])),

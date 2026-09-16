@@ -88,6 +88,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                             data-therapy-left="<?= $therapy_left === null ? '' : $therapy_left ?>"
                             data-non-therapy-left="<?= $non_therapy_left === null ? '' : $non_therapy_left ?>"
                             <?= $slot_is_full ? 'disabled' : '' ?>>
+                        <strong class="session-label">Session <?= html_escape($session['session_number']) ?></strong>
                         <strong class="session-time"><?= html_escape($format_time($session['start_time'])) ?> -
                             <?= html_escape($format_time($session['end_time'])) ?></strong>
                         <small class="session-slot-meta">
@@ -256,7 +257,10 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                         (session.non_therapy_left === null ? '' : escapeHtml(session
                             .non_therapy_left)) +
                         '"' + (slotIsFull ? ' disabled' : '') + '>' +
-                        '<strong class="session-time">' + escapeHtml(session.display_start) +
+                        '<strong class="session-label">Session ' + escapeHtml(session
+                            .session_number) +
+                        '</strong><strong class="session-time">' + escapeHtml(session
+                            .display_start) +
                         ' - ' +
                         escapeHtml(session.display_end) +
                         '</strong><small class="session-slot-meta">' +
