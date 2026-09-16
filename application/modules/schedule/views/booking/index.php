@@ -10,6 +10,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
 <form id="booking-form" action="<?= html_escape($submit_url) ?>" method="post"
     data-student-url="<?= html_escape($student_search_url) ?>"
     data-schedule-url="<?= html_escape(site_url('report-distribution/booking/schedule-data')) ?>"
+    data-homeroom-conflict-url="<?= html_escape(site_url('report-distribution/booking/homeroom-conflict')) ?>"
     data-booking-status-url="<?= html_escape($booking_status_url) ?>">
     <input type="hidden" name="report_code" value="<?= html_escape($report['code']) ?>">
     <input type="hidden" name="session_id" id="session_id">
@@ -236,7 +237,9 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 $.each(sessionsByDate[date.id], function (_, session) {
                     var therapyFull = !!session.therapy_full,
                         nonTherapyFull = !!session.non_therapy_full,
-                        slotIsFull = bookingType === 'THERAPY' ? therapyFull : nonTherapyFull,
+                        homeroomConflict = !!session.homeroom_conflict,
+                        slotIsFull = homeroomConflict || (bookingType === 'THERAPY' ?
+                            therapyFull : nonTherapyFull),
                         therapyLeft = session.therapy_left === null ? 'Available' : escapeHtml(
                             session.therapy_left) +
                         ' left',
@@ -263,7 +266,11 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                         '</span><span class="slot-separator">&middot;</span>' +
                         '<span class="slot-badge ' + (nonTherapyFull ? 'slot-full' :
                             'slot-available') +
-                        '">Non-therapy: ' + nonTherapyLeft + '</span></small></label>';
+                        '">Non-therapy: ' + nonTherapyLeft + '</span>' +
+                        (homeroomConflict ?
+                            '<span class="slot-badge slot-full">Homeroom teacher unavailable</span>' :
+                            '') +
+                        '</small></label>';
                 });
                 panelMarkup += '</div></div>';
             });
@@ -344,16 +351,26 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             return 'Please complete the required fields before continuing.';
         }
 
+        function setScheduleLoading(loading) {
+            var $button = $('#wizard-next');
+            $button.prop('disabled', loading).html(loading ?
+                '<i class="fa fa-spinner fa-spin"></i> Loading...' :
+                'Next <i class="fa fa-arrow-right"></i>');
+        }
+
         function proceedToSchedule() {
             var bookingType = $('input[name="booking_type_choice"]:checked').val() || '';
+            setScheduleLoading(true);
             $.getJSON($form.data('schedule-url'), {
                 report_code: $form.find('[name="report_code"]').val(),
+                student_id: $student.val(),
                 booking_type: bookingType,
                 _: new Date().getTime()
             }, function (scheduleResponse) {
                 if (scheduleResponse.status !== 'ok') {
                     $('#booking-error').text(scheduleResponse.message ||
                         'Unable to load the booking schedule.').show();
+                    setScheduleLoading(false);
                     return;
                 }
                 renderSchedule(scheduleResponse);
@@ -364,22 +381,52 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                     if (response.status !== 'ok') {
                         $('#booking-error').text(response.message ||
                             'Unable to check the student booking status.').show();
+                        setScheduleLoading(false);
                         return;
                     }
                     if (response.has_active_booking) {
                         $('#booking-error').text(response.message).show();
+                        setScheduleLoading(false);
                         return;
                     }
                     $('#booking-error').hide();
+                    setScheduleLoading(false);
                     showStep(currentStep + 1);
                 }, 'json').fail(function () {
                     $('#booking-error').text(
                             'Unable to check the student booking status. Please try again.')
                         .show();
+                    setScheduleLoading(false);
                 });
             }).fail(function () {
                 $('#booking-error').text(
                     'Unable to load the booking schedule. Please try again.').show();
+                setScheduleLoading(false);
+            });
+        }
+
+        function proceedToConfirmation() {
+            var session = selectedSession();
+            $.getJSON($form.data('homeroom-conflict-url'), {
+                report_code: $form.find('[name="report_code"]').val(),
+                student_id: $student.val(),
+                session_id: session.data('session-id'),
+                _: new Date().getTime()
+            }, function (response) {
+                if (response.status !== 'ok') {
+                    $('#booking-error').text(response.message ||
+                        'Unable to check the selected session.').show();
+                    return;
+                }
+                if (response.has_conflict) {
+                    $('#booking-error').text(response.message).show();
+                    return;
+                }
+                $('#booking-error').hide();
+                showStep(currentStep + 1);
+            }).fail(function () {
+                $('#booking-error').text(
+                    'Unable to check the selected session. Please try again.').show();
             });
         }
 
@@ -391,6 +438,10 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             }
             if (currentStep === 2) {
                 proceedToSchedule();
+                return;
+            }
+            if (currentStep === 3) {
+                proceedToConfirmation();
                 return;
             }
             $('#booking-error').hide();

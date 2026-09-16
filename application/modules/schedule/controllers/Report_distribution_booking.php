@@ -188,17 +188,62 @@ class Report_distribution_booking extends CI_Controller
         ));
     }
 
+    public function homeroom_conflict()
+    {
+        $code = trim((string) $this->input->get('report_code'));
+        $student_id = trim((string) $this->input->get('student_id'));
+        $session_id = trim((string) $this->input->get('session_id'));
+        $report = $this->get_report($code);
+
+        if (empty($report) || $report['status'] !== 'PUBLISHED' || !$this->is_booking_open($report) ||
+            $student_id === '' || $session_id === '') {
+            $this->json(array('status' => 'error', 'message' => 'Unable to check this session.'));
+            return;
+        }
+
+        $session = $this->db->select('s.id')
+            ->from('report_distribution_sessions s')
+            ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
+            ->where('s.id', $session_id)
+            ->where('s.is_active', 1)
+            ->where('d.is_active', 1)
+            ->where('d.report_distribution_id', $report['id'])
+            ->get()->row_array();
+        $homeroom_teacher = $this->get_student_homeroom_teacher($student_id);
+
+        if (empty($session) || empty($homeroom_teacher)) {
+            $this->json(array('status' => 'error', 'message' => 'Unable to check this session.'));
+            return;
+        }
+
+        $conflict = $this->find_homeroom_conflict($report['id'], $session_id, $homeroom_teacher['id']);
+        $this->json(array(
+            'status' => 'ok',
+            'has_conflict' => !empty($conflict),
+            'message' => !empty($conflict)
+                ? 'This session is already booked for this student\'s homeroom teacher. Please select another session.'
+                : ''
+        ));
+    }
+
     public function schedule_data()
     {
         $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
         $this->output->set_header('Pragma: no-cache');
         $code = trim((string) $this->input->get('report_code'));
+        $student_id = trim((string) $this->input->get('student_id'));
         $booking_type = strtoupper(trim((string) $this->input->get('booking_type')));
         $report = $this->get_report($code);
 
         if (empty($report) || $report['status'] !== 'PUBLISHED' || !$this->is_booking_open($report) ||
-            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
+            $student_id === '' || !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
             $this->json(array('status' => 'error', 'message' => 'Schedule is currently unavailable.'));
+            return;
+        }
+
+        $homeroom_teacher = $this->get_student_homeroom_teacher($student_id);
+        if (empty($homeroom_teacher)) {
+            $this->json(array('status' => 'error', 'message' => 'The selected student does not have a valid homeroom teacher assignment.'));
             return;
         }
 
@@ -215,6 +260,7 @@ class Report_distribution_booking extends CI_Controller
             ->get('report_distribution_sessions')->result_array();
 
         $booking_counts = array();
+        $homeroom_conflicts = array();
         if (!empty($sessions)) {
             $session_ids = array_column($sessions, 'id');
             $count_rows = $this->db->query(
@@ -227,6 +273,21 @@ class Report_distribution_booking extends CI_Controller
             )->result_array();
             foreach ($count_rows as $count_row) {
                 $booking_counts[$count_row['session_id']][$count_row['booking_type']] = (int) $count_row['total'];
+            }
+
+            $conflict_rows = $this->db->select('b.session_id')
+                ->from('report_distribution_bookings b')
+                ->join('t_kelas_siswa ks_existing', 'ks_existing.id_siswa = b.student_id', 'inner')
+                ->join('tahun ta_existing', "ta_existing.aktif = 'Y' AND ks_existing.ta = CAST(LEFT(ta_existing.tahun, 4) AS UNSIGNED)", 'inner', false)
+                ->join('t_walikelas wk_existing', "wk_existing.id_kelas = ks_existing.id_kelas AND wk_existing.tasm = LEFT(ta_existing.tahun, 4)", 'inner', false)
+                ->where('b.report_distribution_id', $report['id'])
+                ->where_in('b.session_id', $session_ids)
+                ->where("TRIM(LOWER(COALESCE(b.status, ''))) <> 'cancelled'", null, false)
+                ->where('wk_existing.id_guru', $homeroom_teacher['id'])
+                ->group_by('b.session_id')
+                ->get()->result_array();
+            foreach ($conflict_rows as $conflict_row) {
+                $homeroom_conflicts[$conflict_row['session_id']] = true;
             }
         }
 
@@ -257,7 +318,8 @@ class Report_distribution_booking extends CI_Controller
                 'therapy_left' => $therapy_left,
                 'non_therapy_left' => $non_therapy_left,
                 'therapy_full' => $therapy_left !== null && $therapy_left <= 0,
-                'non_therapy_full' => $non_therapy_left !== null && $non_therapy_left <= 0
+                'non_therapy_full' => $non_therapy_left !== null && $non_therapy_left <= 0,
+                'homeroom_conflict' => isset($homeroom_conflicts[$session['id']])
             );
         }
 
@@ -365,6 +427,13 @@ class Report_distribution_booking extends CI_Controller
             return;
         }
 
+        $homeroom_teacher = $this->get_student_homeroom_teacher($student_id);
+        if (empty($homeroom_teacher)) {
+            $this->db->trans_rollback();
+            $this->json(array('status' => 'error', 'message' => 'The selected student does not have a valid homeroom teacher assignment.'));
+            return;
+        }
+
         $active_booking = $this->get_active_booking($report['id'], $student_id);
         if (!empty($active_booking)) {
             $schedule = date('d M Y', strtotime($active_booking['distribution_date'])) . ', ' .
@@ -372,6 +441,15 @@ class Report_distribution_booking extends CI_Controller
                 date('H:i', strtotime($active_booking['end_time']));
             $this->db->trans_rollback();
             $this->json(array('status' => 'error', 'message' => 'This student already has an active booking for ' . $schedule . '. Please contact the admin division to cancel the existing booking.'));
+            return;
+        }
+
+        $homeroom_conflict = $this->find_homeroom_conflict(
+            $report['id'], $session_id, $homeroom_teacher['id']
+        );
+        if (!empty($homeroom_conflict)) {
+            $this->db->trans_rollback();
+            $this->json(array('status' => 'error', 'message' => 'This session is already booked for this student\'s homeroom teacher. Please select another session.'));
             return;
         }
 
@@ -972,6 +1050,39 @@ class Report_distribution_booking extends CI_Controller
             ->where("TRIM(LOWER(COALESCE(b.status, ''))) <> 'cancelled'", null, false)
             ->order_by('b.booked_at', 'DESC')
             ->get()->row_array();
+    }
+
+    private function get_student_homeroom_teacher($student_id)
+    {
+        return $this->db->select('g.id, g.nama, k.id AS class_id, k.nama AS class_name')
+            ->from('m_siswa s')
+            ->join('t_kelas_siswa ks', 'ks.id_siswa = s.id', 'inner')
+            ->join('tahun ta', 'ta.aktif = \'Y\' AND ks.ta = CAST(LEFT(ta.tahun, 4) AS UNSIGNED)', 'inner', false)
+            ->join('m_kelas k', 'k.id = ks.id_kelas', 'inner')
+            ->join('t_walikelas wk', 'wk.id_kelas = k.id AND wk.tasm = LEFT(ta.tahun, 4)', 'inner', false)
+            ->join('m_guru g', 'g.id = wk.id_guru', 'inner')
+            ->where('s.id', $student_id)
+            ->where('s.stat_data', 'A')
+            ->order_by('ta.tahun', 'DESC')
+            ->get()->row_array();
+    }
+
+    private function find_homeroom_conflict($report_distribution_id, $session_id, $homeroom_teacher_id)
+    {
+        $query = $this->db->select('b.id')
+            ->from('report_distribution_bookings b')
+            ->join('t_kelas_siswa ks_existing', 'ks_existing.id_siswa = b.student_id', 'inner')
+            ->join('tahun ta_existing', "ta_existing.aktif = 'Y' AND ks_existing.ta = CAST(LEFT(ta_existing.tahun, 4) AS UNSIGNED)", 'inner', false)
+            ->join('m_kelas k_existing', 'k_existing.id = ks_existing.id_kelas', 'inner')
+            ->join('t_walikelas wk_existing', "wk_existing.id_kelas = k_existing.id AND wk_existing.tasm = LEFT(ta_existing.tahun, 4)", 'inner', false)
+            ->join('m_guru g_existing', 'g_existing.id = wk_existing.id_guru', 'inner')
+            ->where('b.report_distribution_id', $report_distribution_id)
+            ->where('b.session_id', $session_id)
+            ->where("TRIM(LOWER(COALESCE(b.status, ''))) <> 'cancelled'", null, false)
+            ->where('g_existing.id', $homeroom_teacher_id)
+            ->limit(1);
+
+        return $query->get()->row_array();
     }
 
     private function is_booking_open($report)

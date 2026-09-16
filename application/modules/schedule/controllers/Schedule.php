@@ -150,13 +150,15 @@ class Schedule extends CI_Controller
         $rows = $this->db->select('d.id AS date_id, d.distribution_date, d.label AS date_label,
                 s.id AS session_id, s.session_number, s.start_time, s.end_time,
             b.id AS booking_id, b.booking_type, b.report_collection_method, b.gmeet_link, m.nama AS student_name,
-                k.nama AS class_name', false)
+                k.nama AS class_name, g.nama AS homeroom_teacher', false)
             ->from('report_distribution_dates d')
             ->join('report_distribution_sessions s', 's.report_distribution_date_id = d.id', 'left')
             ->join('report_distribution_bookings b', "b.session_id = s.id AND b.status = 'BOOKED'", 'left', false)
             ->join('m_siswa m', 'm.id = b.student_id', 'left')
             ->join('t_kelas_siswa ks', 'ks.id_siswa = m.id AND ks.ta = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE id = ' . (int) $report['tahun_id'] . ' LIMIT 1)', 'left', false)
             ->join('m_kelas k', 'k.id = ks.id_kelas', 'left')
+            ->join('t_walikelas wk', 'wk.id_kelas = ks.id_kelas AND wk.tasm = (SELECT LEFT(tahun, 4) FROM tahun WHERE id = ' . (int) $report['tahun_id'] . ' LIMIT 1)', 'left', false)
+            ->join('m_guru g', 'g.id = wk.id_guru', 'left')
             ->where('d.report_distribution_id', $report['id'])
             ->where('d.is_active', 1)
             ->order_by('d.distribution_date', 'ASC')

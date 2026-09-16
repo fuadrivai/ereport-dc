@@ -59,7 +59,11 @@
                         </td><?php } ?>
                         <?php } else { ?><td>
                             <?= $therapy_booking ? html_escape($therapy_booking['student_name']) : '' ?></td><?php } ?>
-                        <td><?= $therapy_booking ? html_escape($therapy_booking['class_name']) : '' ?></td>
+                        <td><?php if ($therapy_booking) { ?>
+                            <?= html_escape($therapy_booking['class_name']) ?><?php if (!empty($therapy_booking['homeroom_teacher'])) { ?><br><span
+                                class="homeroom-teacher-badge"><i class="fa fa-user"></i>
+                                <?= html_escape($therapy_booking['homeroom_teacher']) ?></span><?php } ?>
+                            <?php } ?></td>
                         <td><?php if ($therapy_booking) { ?><span
                                 class="collection-method-label <?= $therapy_booking['report_collection_method'] === 'ONLINE' ? 'collection-method-online' : 'collection-method-onsite' ?>"><?= $therapy_booking['report_collection_method'] === 'ONLINE' ? 'Online' : 'Onsite' ?></span><?php } ?><?php if (!empty($therapy_booking['gmeet_link'])) { ?><a
                                 class="btn btn-xs btn-primary open-gmeet-link"
@@ -73,7 +77,11 @@
                         </td><?php } ?>
                         <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['student_name']) : ($index === 0 ? '<span class="text-muted">Available</span>' : '') ?>
                         </td>
-                        <td><?= $non_therapy_booking ? html_escape($non_therapy_booking['class_name']) : '' ?></td>
+                        <td><?php if ($non_therapy_booking) { ?>
+                            <?= html_escape($non_therapy_booking['class_name']) ?><?php if (!empty($non_therapy_booking['homeroom_teacher'])) { ?><br><span
+                                class="homeroom-teacher-badge"><i class="fa fa-user"></i>
+                                <?= html_escape($non_therapy_booking['homeroom_teacher']) ?></span><?php } ?>
+                            <?php } ?></td>
                         <td><?php if ($non_therapy_booking) { ?><span
                                 class="collection-method-label <?= $non_therapy_booking['report_collection_method'] === 'ONLINE' ? 'collection-method-online' : 'collection-method-onsite' ?>"><?= $non_therapy_booking['report_collection_method'] === 'ONLINE' ? 'Online' : 'Onsite' ?></span><?php } ?><?php if (!empty($non_therapy_booking['gmeet_link'])) { ?><a
                                 class="btn btn-xs btn-primary open-gmeet-link"
@@ -134,6 +142,18 @@
     .registration-session {
         width: 12%;
         line-height: 1.3;
+    }
+
+    .homeroom-teacher-badge {
+        display: inline-block;
+        margin-top: 4px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #fff3cd;
+        color: #664d03;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
     }
 
     .open-gmeet-link,
