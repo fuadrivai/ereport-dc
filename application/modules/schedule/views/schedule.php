@@ -1,13 +1,14 @@
+<?php $is_admin = isset($admlevel) && strtolower(trim((string) $admlevel)) === 'admin'; ?>
 <div class="card schedule-card">
     <div class="header">
         <h4 class="title">List Schedule</h4>
     </div>
     <div class="content">
-        <div class="panel">
+        <?php if ($is_admin) { ?><div class="panel">
             <div class="panel-body">
                 <a href="<?= base_url($url . '/edit/0') ?>" class="btn btn-success">Tambah</a>
             </div>
-        </div>
+        </div><?php } ?>
 
         <table class="table table-hover table-striped schedule-table" id="tbl-schedule"
             style="width: 100%; table-layout: fixed;">
@@ -44,20 +45,26 @@
                                 Action <span class="caret"></span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-right">
+                                <?php if ($is_admin) { ?>
                                 <li><a href="<?= base_url($url . '/edit/' . html_escape($d['id'])) ?>"><i
                                             class="fa fa-edit"></i> Edit</a></li>
+                                <?php } ?>
                                 <li><a href="<?= html_escape(base_url('report-distribution/booking/' . $d['code'])) ?>"
                                         target="_blank" rel="noopener"><i class="fa fa-link"></i> Booking Page</a></li>
                                 <li><a href="<?= base_url('schedule/registration-list/' . html_escape($d['id'])) ?>"><i
                                             class="fa fa-list"></i> Registered Students</a></li>
+                                <?php if ($is_admin) { ?>
                                 <li><a href="<?= base_url('schedule/booking-management/' . html_escape($d['id'])) ?>"><i
                                             class="fa fa-calendar-check-o"></i> Manage Bookings</a></li>
+                                <?php } ?>
                                 <li><a href="#modal_slots_<?= html_escape($d['id']) ?>" data-toggle="modal"><i
                                             class="fa fa-clock-o"></i> Slot</a></li>
                                 <li role="separator" class="divider"></li>
+                                <?php if ($is_admin) { ?>
                                 <li><a href="#" class="text-danger"
                                         onclick="return hapus('<?= html_escape($d['id']) ?>');"><i
                                             class="fa fa-remove"></i> Hapus</a></li>
+                                <?php } ?>
                             </ul>
                         </div>
                     </td>

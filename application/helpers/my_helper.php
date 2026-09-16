@@ -224,6 +224,15 @@ function generate_menu($level, $is_wali = false)
 <li><a href="' . base_url() . 'cetak_leger"><i class="pe-7s-print"></i>Cetak Leger</a></li>
     </ul>
 </li>
+
+<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-portfolio"></i><p>Report Schedule</p></a>
+						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">
+							<li><a href="' . base_url() . 'schedule/therapist"><i class="pe-7s-portfolio"></i>Therapist</a></li>
+							<li><a href="' . base_url() . 'student_therapist"><i class="pe-7s-users"></i>Student Therapist</a></li>
+							<li><a href="' . base_url() . 'schedule/report"><i class="pe-7s-portfolio"></i>Schedule</a></li>
+						</ul>
+					</li>
 									
 		                            
 		                            <li><a href="' . base_url() . 'home/ubah_password"><i class="pe-7s-unlock"></i><p>Ubah Password</p></a></li>' :
