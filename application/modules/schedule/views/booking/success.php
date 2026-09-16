@@ -25,11 +25,11 @@ $format_end = date('H:i', strtotime($booking['end_time']));
                 <div class="summary-row"><span class="summary-label">Attendance</span><span
                                 class="summary-value"><?= $booking['booking_type'] === 'THERAPY' ? 'Therapy' : 'Without Therapy' ?></span>
                 </div>
-                <div class="summary-row"><span class="summary-label">Report Collection</span><span
+                <!-- <div class="summary-row"><span class="summary-label">Report Collection</span><span
                                 class="summary-value"><?= $booking['report_collection_method'] === 'ONLINE' ? 'Online' : 'Onsite' ?></span>
-                </div>
+                </div> -->
                 <?php if ($booking['booking_type'] === 'THERAPY') { ?>
-                <div class="summary-row"><span class="summary-label">Therapist</span><span
+                <div class="summary-row"><span class="summary-label">Psychologist</span><span
                                 class="summary-value"><?= html_escape($booking['therapist_name'] ?: 'Not assigned') ?></span>
                 </div>
                 <?php } ?>

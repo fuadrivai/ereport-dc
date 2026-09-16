@@ -109,7 +109,7 @@
                                     <li>Semester: <?= html_escape($semester) ?></li>
                                     <li>Report Type: <?= html_escape($report_type) ?></li>
                                     <li>Type: <?= html_escape($type_label) ?></li>
-                                    <?php if ($type_label === 'Therapy') { ?><li>Therapist:
+                                    <?php if ($type_label === 'Therapy') { ?><li>Phycologist:
                                         <?= html_escape($therapist_name) ?></li><?php } ?>
                                     <li>Date: <?= html_escape(date('l, d F Y', strtotime($distribution_date))) ?></li>
                                     <li>Time: <?= html_escape(date('H:i', strtotime($start_time))) ?> -

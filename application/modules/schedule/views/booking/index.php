@@ -9,6 +9,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
 <?php } else { ?>
 <form id="booking-form" action="<?= html_escape($submit_url) ?>" method="post"
     data-student-url="<?= html_escape($student_search_url) ?>"
+    data-schedule-url="<?= html_escape(site_url('report-distribution/booking/schedule-data')) ?>"
     data-booking-status-url="<?= html_escape($booking_status_url) ?>">
     <input type="hidden" name="report_code" value="<?= html_escape($report['code']) ?>">
     <input type="hidden" name="session_id" id="session_id">
@@ -35,15 +36,16 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         <label class="booking-label">Attendance Type</label>
         <div class="booking-type-grid" role="radiogroup">
             <label class="choice-card booking-type-card"><input type="radio" name="booking_type_choice"
-                    value="THERAPY"><i class="fa fa-heart-o"></i><strong>Therapy</strong><small>Show students with an
-                    active therapy assignment.</small></label>
+                    value="THERAPY"><i class="fa fa-heart-o"></i><strong>Therapy</strong><small>With a
+                    Psychologist from Mutiara Edu Sensory.</small></label>
             <label class="choice-card booking-type-card"><input type="radio" name="booking_type_choice"
-                    value="NON_THERAPY"><i class="fa fa-users"></i><strong>Without Therapy</strong><small>Show students
-                    without an active therapy assignment.</small></label>
+                    value="NON_THERAPY"><i class="fa fa-users"></i><strong>Non Therapy</strong><small>Without a
+                    Psychologist from Mutiara Edu Sensory.</small></label>
         </div>
         <label class="booking-label" for="student_id">Student</label>
         <select id="student_id" name="student_id" class="form-control" required disabled></select>
-        <p class="booking-help">Choose an attendance type first, then search by student name, NIS, or NISN.</p>
+        <p class="booking-help">Choose an attendance type first, then select a student or search by name, NIS, or NISN.
+        </p>
         <label class="booking-label" for="parent_name">Parent / Guardian Name</label>
         <input class="form-control" id="parent_name" name="parent_name" required>
         <label class="booking-label" for="parent_email">Parent / Guardian Email</label>
@@ -67,42 +69,43 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             <?php } ?>
         </div>
         <label class="booking-label">Preferred Time</label>
-        <?php foreach ($dates as $date) { ?>
-        <div class="date-panel <?= (string) $date['id'] === (string) $first_date_id ? 'active' : '' ?>"
-            id="date-panel-<?= html_escape($date['id']) ?>">
-            <div class="session-grid" role="radiogroup">
-                <?php foreach (isset($sessions_by_date[$date['id']]) ? $sessions_by_date[$date['id']] : array() as $session) {
+        <div id="schedule-date-panels">
+            <?php foreach ($dates as $date) { ?>
+            <div class="date-panel <?= (string) $date['id'] === (string) $first_date_id ? 'active' : '' ?>"
+                id="date-panel-<?= html_escape($date['id']) ?>">
+                <div class="session-grid" role="radiogroup">
+                    <?php foreach (isset($sessions_by_date[$date['id']]) ? $sessions_by_date[$date['id']] : array() as $session) {
                     $therapy_left = $session['therapy_capacity'] === null || $session['therapy_capacity'] === '' ? null : max(0, (int) $session['therapy_capacity'] - (int) $session['therapy_booked']);
-                    $non_therapy_left = $session['non_therapy_capacity'] === null || $session['non_therapy_capacity'] === '' ? null : max(0, (int) $session['non_therapy_capacity'] - (int) $session['non_therapy_booked']); ?>
-                <label class="choice-card session-card session-choice">
-                    <input type="radio" name="session_choice" value="<?= html_escape($session['id']) ?>"
-                        data-session-id="<?= html_escape($session['id']) ?>"
-                        data-therapy-left="<?= $therapy_left === null ? '' : $therapy_left ?>"
-                        data-non-therapy-left="<?= $non_therapy_left === null ? '' : $non_therapy_left ?>">
-                    <strong class="session-time"><?= html_escape($format_time($session['start_time'])) ?> -
-                        <?= html_escape($format_time($session['end_time'])) ?></strong>
-                    <small>Therapy: <?= $therapy_left === null ? 'Available' : $therapy_left . ' slot(s) left' ?>
-                        &middot; Non-therapy:
-                        <?= $non_therapy_left === null ? 'Available' : $non_therapy_left . ' slot(s) left' ?></small>
-                </label>
-                <?php } ?>
+                    $non_therapy_left = $session['non_therapy_capacity'] === null || $session['non_therapy_capacity'] === '' ? null : max(0, (int) $session['non_therapy_capacity'] - (int) $session['non_therapy_booked']);
+                    $therapy_full = $therapy_left !== null && (int) $therapy_left <= 0;
+                    $non_therapy_full = $non_therapy_left !== null && (int) $non_therapy_left <= 0;
+                    $slot_is_full = $therapy_full && $non_therapy_full; ?>
+                    <label
+                        class="choice-card session-card session-choice <?= $slot_is_full ? 'session-full' : 'session-available' ?>">
+                        <input type="radio" name="session_choice" value="<?= html_escape($session['id']) ?>"
+                            data-session-id="<?= html_escape($session['id']) ?>"
+                            data-therapy-left="<?= $therapy_left === null ? '' : $therapy_left ?>"
+                            data-non-therapy-left="<?= $non_therapy_left === null ? '' : $non_therapy_left ?>"
+                            <?= $slot_is_full ? 'disabled' : '' ?>>
+                        <strong class="session-time"><?= html_escape($format_time($session['start_time'])) ?> -
+                            <?= html_escape($format_time($session['end_time'])) ?></strong>
+                        <small class="session-slot-meta">
+                            <span class="slot-badge <?= $therapy_full ? 'slot-full' : 'slot-available' ?>">Therapy:
+                                <?= $therapy_left === null ? 'Available' : $therapy_left . ' left' ?></span>
+                            <span class="slot-separator">&middot;</span>
+                            <span
+                                class="slot-badge <?= $non_therapy_full ? 'slot-full' : 'slot-available' ?>">Non-therapy:
+                                <?= $non_therapy_left === null ? 'Available' : $non_therapy_left . ' left' ?></span>
+                        </small>
+                    </label>
+                    <?php } ?>
+                </div>
+                <?php if (empty($sessions_by_date[$date['id']])) { ?><p class="booking-help">No sessions are available
+                    for
+                    this date.</p><?php } ?>
             </div>
-            <?php if (empty($sessions_by_date[$date['id']])) { ?><p class="booking-help">No sessions are available for
-                this date.</p><?php } ?>
+            <?php } ?>
         </div>
-        <?php } ?>
-        <label class="booking-label">Report Collection Method</label>
-        <div class="booking-type-grid" role="radiogroup">
-            <label class="choice-card collection-method-card"><input type="radio" name="report_collection_method"
-                    value="ONLINE" required><i class="fa fa-video-camera"></i><strong>Online</strong><small>Receive
-                    the report online.</small></label>
-            <label class="choice-card collection-method-card"><input type="radio" name="report_collection_method"
-                    value="ONSITE" required><i class="fa fa-building-o"></i><strong>Onsite</strong><small>Collect the
-                    report at school.</small></label>
-        </div>
-        <label class="booking-label" for="notes">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="3"
-            placeholder="Additional notes (optional)"></textarea>
     </section>
 
     <section class="wizard-panel" data-step="4">
@@ -124,10 +127,6 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                     id="summary-time">Not selected</span></div>
             <div class="summary-row"><span class="summary-label">Attendance Type</span><span class="summary-value"
                     id="summary-type">Not selected</span></div>
-            <div class="summary-row"><span class="summary-label">Report Collection</span><span class="summary-value"
-                    id="summary-collection-method">Not selected</span></div>
-            <div class="summary-row"><span class="summary-label">Notes</span><span class="summary-value"
-                    id="summary-notes">Not provided</span></div>
         </div>
     </section>
 
@@ -142,11 +141,37 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
     $(function () {
         var currentStep = 1,
             $form = $('#booking-form'),
-            $student = $('#student_id');
+            $student = $('#student_id'),
+            $scheduleDateGrid = $('.date-grid'),
+            $scheduleDatePanels = $('#schedule-date-panels');
+
+        function loadStudentOptions() {
+            var bookingType = $('input[name="booking_type_choice"]:checked').val() || '';
+            if (!bookingType) {
+                $student.empty().prop('disabled', true).trigger('change');
+                return;
+            }
+
+            $.getJSON($form.data('student-url'), {
+                booking_type: bookingType,
+                q: ''
+            }, function (response) {
+                var results = response && response.results ? response.results : [];
+                $student.empty();
+                $.each(results, function (_, student) {
+                    $student.append(new Option(student.text, student.id, false, false));
+                });
+                $student.prop('disabled', false).trigger('change');
+            }).fail(function () {
+                $student.empty().prop('disabled', false);
+            });
+        }
+
         $student.select2({
             width: '100%',
-            placeholder: 'Search student name, NIS, or NISN',
-            minimumInputLength: 2,
+            placeholder: 'Select or search student name, NIS, or NISN',
+            minimumInputLength: 0,
+            allowClear: true,
             ajax: {
                 url: $form.data('student-url'),
                 dataType: 'json',
@@ -169,10 +194,89 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             return $('input[name="session_choice"]:checked');
         }
 
+        function escapeHtml(value) {
+            return $('<div>').text(value === null || value === undefined ? '' : value).html();
+        }
+
+        function renderSchedule(response) {
+            var dates = response.dates || [],
+                sessions = response.sessions || [],
+                bookingType = response.booking_type || '',
+                sessionsByDate = {},
+                dateMarkup = '',
+                panelMarkup = '';
+
+            $.each(sessions, function (_, session) {
+                if (!sessionsByDate[session.date_id]) {
+                    sessionsByDate[session.date_id] = [];
+                }
+                sessionsByDate[session.date_id].push(session);
+            });
+
+            $.each(dates, function (index, date) {
+                var dateId = escapeHtml(date.id),
+                    selected = index === 0 ? ' selected' : '',
+                    checked = index === 0 ? ' checked' : '';
+                dateMarkup += '<label class="choice-card date-choice' + selected + '">' +
+                    '<input type="radio" name="date_id" value="' + dateId +
+                    '" data-target="date-panel-' +
+                    dateId + '"' + checked + ' required>' +
+                    '<strong>' + escapeHtml(date.display_date) + '</strong><small>' + escapeHtml(date
+                        .label) +
+                    '</small></label>';
+                panelMarkup += '<div class="date-panel' + (index === 0 ? ' active' : '') +
+                    '" id="date-panel-' + dateId + '"><div class="session-grid" role="radiogroup">';
+
+                if (!sessionsByDate[date.id] || !sessionsByDate[date.id].length) {
+                    panelMarkup +=
+                        '</div><p class="booking-help">No sessions are available for this date.</p></div>';
+                    return;
+                }
+
+                $.each(sessionsByDate[date.id], function (_, session) {
+                    var therapyFull = !!session.therapy_full,
+                        nonTherapyFull = !!session.non_therapy_full,
+                        slotIsFull = bookingType === 'THERAPY' ? therapyFull : nonTherapyFull,
+                        therapyLeft = session.therapy_left === null ? 'Available' : escapeHtml(
+                            session.therapy_left) +
+                        ' left',
+                        nonTherapyLeft = session.non_therapy_left === null ? 'Available' :
+                        escapeHtml(session.non_therapy_left) + ' left',
+                        sessionId = escapeHtml(session.id);
+                    panelMarkup += '<label class="choice-card session-card session-choice ' +
+                        (slotIsFull ? 'session-full' : 'session-available') + '">' +
+                        '<input type="radio" name="session_choice" value="' + sessionId +
+                        '" data-session-id="' + sessionId + '" data-therapy-left="' +
+                        (session.therapy_left === null ? '' : escapeHtml(session
+                            .therapy_left)) +
+                        '" data-non-therapy-left="' +
+                        (session.non_therapy_left === null ? '' : escapeHtml(session
+                            .non_therapy_left)) +
+                        '"' + (slotIsFull ? ' disabled' : '') + '>' +
+                        '<strong class="session-time">' + escapeHtml(session.display_start) +
+                        ' - ' +
+                        escapeHtml(session.display_end) +
+                        '</strong><small class="session-slot-meta">' +
+                        '<span class="slot-badge ' + (therapyFull ? 'slot-full' :
+                            'slot-available') +
+                        '">Therapy: ' + therapyLeft +
+                        '</span><span class="slot-separator">&middot;</span>' +
+                        '<span class="slot-badge ' + (nonTherapyFull ? 'slot-full' :
+                            'slot-available') +
+                        '">Non-therapy: ' + nonTherapyLeft + '</span></small></label>';
+                });
+                panelMarkup += '</div></div>';
+            });
+
+            $scheduleDateGrid.html(dateMarkup);
+            $scheduleDatePanels.html(panelMarkup);
+            $('input[name="session_choice"]').prop('checked', false);
+            updateState();
+        }
+
         function updateState() {
             var session = selectedSession(),
-                type = $('input[name="booking_type_choice"]:checked').val() || '',
-                collectionMethod = $('input[name="report_collection_method"]:checked').val() || '';
+                type = $('input[name="booking_type_choice"]:checked').val() || '';
             $('#session_id').val(session.data('session-id') || '');
             $('#booking_type').val(type);
             $('#summary-student').text($student.find('option:selected').text() || 'Not selected');
@@ -182,9 +286,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             $('#summary-parent').text($('#parent_name').val() || 'Not selected');
             $('#summary-type').text(type === 'THERAPY' ? 'Therapy' : (type === 'NON_THERAPY' ?
                 'Without Therapy' : 'Not selected'));
-            $('#summary-collection-method').text(collectionMethod === 'ONLINE' ? 'Online' :
-                (collectionMethod === 'ONSITE' ? 'Onsite' : 'Not selected'));
-            $('#summary-notes').text($('#notes').val().trim() || 'Not provided');
+            $('#summary-collection-method').text('Online');
             $('#summary-time').text(session.length ? session.closest('label').find('.session-time').text() :
                 'Not selected');
             $('#summary-date').text($('input[name="date_id"]:checked').closest('label').find('strong').text() ||
@@ -216,8 +318,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 var session = selectedSession(),
                     type = $('input[name="booking_type_choice"]:checked').val(),
                     left = type === 'THERAPY' ? session.data('therapy-left') : session.data('non-therapy-left');
-                return session.length > 0 && (left === '' || parseInt(left, 10) > 0) && !!$(
-                    'input[name="report_collection_method"]:checked').val();
+                return session.length > 0 && (left === '' || parseInt(left, 10) > 0);
             }
             return true;
         }
@@ -232,10 +333,6 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 return 'Please select a time slot before continuing.';
             }
 
-            if (!$('input[name="report_collection_method"]:checked').val()) {
-                return 'Please select how you will receive the report before continuing.';
-            }
-
             var type = $('input[name="booking_type_choice"]:checked').val(),
                 left = type === 'THERAPY' ? session.data('therapy-left') : session.data('non-therapy-left');
             if (left !== '' && parseInt(left, 10) <= 0) {
@@ -248,24 +345,41 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         }
 
         function proceedToSchedule() {
-            $.get($form.data('booking-status-url'), {
+            var bookingType = $('input[name="booking_type_choice"]:checked').val() || '';
+            $.getJSON($form.data('schedule-url'), {
                 report_code: $form.find('[name="report_code"]').val(),
-                student_id: $student.val()
-            }, function (response) {
-                if (response.status !== 'ok') {
-                    $('#booking-error').text(response.message ||
-                        'Unable to check the student booking status.').show();
+                booking_type: bookingType,
+                _: new Date().getTime()
+            }, function (scheduleResponse) {
+                if (scheduleResponse.status !== 'ok') {
+                    $('#booking-error').text(scheduleResponse.message ||
+                        'Unable to load the booking schedule.').show();
                     return;
                 }
-                if (response.has_active_booking) {
-                    $('#booking-error').text(response.message).show();
-                    return;
-                }
-                $('#booking-error').hide();
-                showStep(currentStep + 1);
-            }, 'json').fail(function () {
+                renderSchedule(scheduleResponse);
+                $.get($form.data('booking-status-url'), {
+                    report_code: $form.find('[name="report_code"]').val(),
+                    student_id: $student.val()
+                }, function (response) {
+                    if (response.status !== 'ok') {
+                        $('#booking-error').text(response.message ||
+                            'Unable to check the student booking status.').show();
+                        return;
+                    }
+                    if (response.has_active_booking) {
+                        $('#booking-error').text(response.message).show();
+                        return;
+                    }
+                    $('#booking-error').hide();
+                    showStep(currentStep + 1);
+                }, 'json').fail(function () {
+                    $('#booking-error').text(
+                            'Unable to check the student booking status. Please try again.')
+                        .show();
+                });
+            }).fail(function () {
                 $('#booking-error').text(
-                    'Unable to check the student booking status. Please try again.').show();
+                    'Unable to load the booking schedule. Please try again.').show();
             });
         }
 
@@ -286,7 +400,7 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
             $('#booking-error').hide();
             showStep(currentStep - 1);
         });
-        $('input[name="date_id"]').on('change', function () {
+        $form.on('change', 'input[name="date_id"]', function () {
             $('.date-choice').removeClass('selected');
             $(this).closest('.date-choice').addClass('selected');
             $('.date-panel').removeClass('active');
@@ -295,24 +409,19 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
                 .removeClass('selected');
             updateState();
         });
-        $('input[name="session_choice"]').on('change', function () {
+        $form.on('change', 'input[name="session_choice"]', function () {
             $('.session-choice').removeClass('selected');
             $(this).closest('.session-choice').addClass('selected');
-            updateState();
-        });
-        $('input[name="report_collection_method"]').on('change', function () {
-            $('.collection-method-card').removeClass('selected');
-            $(this).closest('.collection-method-card').addClass('selected');
             updateState();
         });
         $('input[name="booking_type_choice"]').on('change', function () {
             $('.booking-type-card').removeClass('selected');
             $(this).closest('.booking-type-card').addClass('selected');
-            $student.prop('disabled', false);
             $student.removeData('student-grade');
             $student.removeData('homeroom-teacher');
             $student.removeData('principal-name');
             $student.val(null).trigger('change');
+            loadStudentOptions();
             updateState();
         });
         $student.on('select2:select select2-selecting', function (event) {
@@ -327,7 +436,6 @@ $format_time = function ($value) { return date('H:i', strtotime($value)); };
         });
         $student.on('change', updateState);
         $('#parent_name').on('input', updateState);
-        $('#notes').on('input', updateState);
         $form.on('submit', function (event) {
             event.preventDefault();
             if (!validStep()) {

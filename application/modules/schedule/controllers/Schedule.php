@@ -246,7 +246,8 @@ class Schedule extends CI_Controller
 
             $booking_id = (int) $this->input->post('booking_id');
             $action = $this->input->post('action');
-            $booking = $this->db->where('id', $booking_id)->where('status', 'BOOKED')
+            $booking = $this->db->where('id', $booking_id)
+                ->where("TRIM(LOWER(status)) = 'booked'", null, false)
                 ->get('report_distribution_bookings')->row_array();
             if (empty($booking)) {
                 j(array('status' => 'gagal', 'data' => 'Booking aktif tidak ditemukan'));
@@ -259,22 +260,22 @@ class Schedule extends CI_Controller
                         j(array('status' => 'gagal', 'data' => 'Event Google Calendar gagal dihapus. Booking tidak dibatalkan.'));
                         return;
                     }
-                $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')->update(
-                        'report_distribution_bookings', array(
-                            'status' => 'CANCELLED',
-                            'cancelled_at' => date('Y-m-d H:i:s'),
-                            'google_calendar_event_id' => null,
-                            'gmeet_link' => null
-                        )
-                );
+                $saved = $this->db->where('id', $booking_id)
+                    ->where("TRIM(LOWER(status)) = 'booked'", null, false)
+                    ->update('report_distribution_bookings', array(
+                        'status' => 'CANCELLED',
+                        'cancelled_at' => date('Y-m-d H:i:s'),
+                        'google_calendar_event_id' => null,
+                        'gmeet_link' => null
+                    ));
                 j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Booking berhasil dibatalkan' : 'Booking gagal dibatalkan'));
                 return;
             }
 
             if ($action === 'complete') {
-                $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')->update(
-                    'report_distribution_bookings', array('status' => 'COMPLETED', 'completed_at' => date('Y-m-d H:i:s'))
-                );
+                $saved = $this->db->where('id', $booking_id)
+                    ->where("TRIM(LOWER(status)) = 'booked'", null, false)
+                    ->update('report_distribution_bookings', array('status' => 'COMPLETED', 'completed_at' => date('Y-m-d H:i:s')));
                 j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Kedatangan berhasil dikonfirmasi' : 'Kedatangan gagal dikonfirmasi'));
                 return;
             }
@@ -292,13 +293,14 @@ class Schedule extends CI_Controller
 
             $capacity_column = $booking['booking_type'] === 'THERAPY' ? 'therapy_capacity' : 'non_therapy_capacity';
             $booked = $this->db->where('session_id', $session_id)->where('booking_type', $booking['booking_type'])
-                ->where('status', 'BOOKED')->where('id !=', $booking_id)->count_all_results('report_distribution_bookings');
+                ->where("TRIM(LOWER(status)) = 'booked'", null, false)->where('id !=', $booking_id)->count_all_results('report_distribution_bookings');
             if ($booked >= (int) $session[$capacity_column]) {
                 j(array('status' => 'gagal', 'data' => 'Kuota sesi tujuan sudah penuh'));
                 return;
             }
 
-            $saved = $this->db->where('id', $booking_id)->where('status', 'BOOKED')
+            $saved = $this->db->where('id', $booking_id)
+                ->where("TRIM(LOWER(status)) = 'booked'", null, false)
                 ->update('report_distribution_bookings', array('session_id' => $session_id));
             j(array('status' => $saved ? 'ok' : 'gagal', 'data' => $saved ? 'Jadwal booking berhasil diubah' : 'Jadwal booking gagal diubah'));
         }

@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS `report_distribution_bookings` (
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_report_distribution_booking_code` (`booking_code`),
-    UNIQUE KEY `uq_report_distribution_student_booking` (`report_distribution_id`, `student_id`),
     KEY `idx_report_distribution_booking_session_status` (`session_id`, `booking_type`, `status`),
     KEY `idx_report_distribution_booking_student` (`student_id`),
     KEY `idx_report_distribution_booking_therapist` (`therapist_id`),

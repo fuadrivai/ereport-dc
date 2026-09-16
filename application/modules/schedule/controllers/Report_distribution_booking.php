@@ -54,11 +54,14 @@ class Report_distribution_booking extends CI_Controller
         $booking_counts = array();
         if (!empty($sessions)) {
             $session_ids = array_column($sessions, 'id');
-            $count_rows = $this->db->select('session_id, booking_type, COUNT(*) AS total')
-                ->where_in('session_id', $session_ids)
-                ->where('status', 'BOOKED')
-                ->group_by(array('session_id', 'booking_type'))
-                ->get('report_distribution_bookings')->result_array();
+            $count_rows = $this->db->query(
+                'SELECT session_id, booking_type, COUNT(*) AS total
+                 FROM report_distribution_bookings
+                 WHERE session_id IN (' . implode(',', array_fill(0, count($session_ids), '?')) . ')
+                   AND TRIM(LOWER(status)) = ?
+                 GROUP BY session_id, booking_type',
+                array_merge($session_ids, array('booked'))
+            )->result_array();
             foreach ($count_rows as $count_row) {
                 $booking_counts[$count_row['session_id']][$count_row['booking_type']] = (int) $count_row['total'];
             }
@@ -86,38 +89,54 @@ class Report_distribution_booking extends CI_Controller
     {
         $query = trim((string) $this->input->get('q'));
         $booking_type = strtoupper(trim((string) $this->input->get('booking_type')));
-        if (strlen($query) < 2 || !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
+        if (!in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
             $this->json(array('results' => array()));
             return;
         }
 
-        $this->db->select("m.id, m.nama, m.nis, m.nisn, k.nama AS student_grade, g.nama AS homeroom_teacher, (SELECT nama_kepsek FROM tahun WHERE aktif = 'Y' LIMIT 1) AS principal_name")
+        $active_year_row = $this->db->select('tahun')
+            ->where('aktif', 'Y')
+            ->order_by('tahun', 'DESC')
+            ->limit(1)
+            ->get('tahun')
+            ->row_array();
+
+        if (empty($active_year_row) || trim((string) $active_year_row['tahun']) === '') {
+            $this->json(array('results' => array()));
+            return;
+        }
+
+        $active_year = trim((string) $active_year_row['tahun']);
+        $active_year_prefix = substr($active_year, 0, 4);
+
+        $this->db->select("m.id, m.nama, m.nis, m.nisn, k.nama AS student_grade, g.nama AS homeroom_teacher, y.nama_kepsek AS principal_name")
             ->from('m_siswa m')
-            ->join('t_kelas_siswa ks', "ks.id_siswa = m.id AND ks.ta = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE aktif = 'Y' LIMIT 1)", 'left')
+            ->join('t_kelas_siswa ks', 'ks.id_siswa = m.id AND ks.ta = ' . $this->db->escape($active_year_prefix), 'left')
             ->join('m_kelas k', 'k.id = ks.id_kelas', 'left')
-            ->join('t_walikelas wk', "wk.id_kelas = ks.id_kelas AND wk.tasm = (SELECT CAST(LEFT(tahun, 4) AS UNSIGNED) FROM tahun WHERE aktif = 'Y' LIMIT 1)", 'left')
+            ->join('t_walikelas wk', 'wk.id_kelas = ks.id_kelas AND wk.tasm = ' . $this->db->escape($active_year_prefix), 'left')
             ->join('m_guru g', 'g.id = wk.id_guru', 'left')
-            ->where('m.stat_data', 'A')
-            ->group_start()
-            ->like('m.nama', $query)
-            ->or_like('m.nis', $query)
-            ->or_like('m.nisn', $query)
-            ->group_end();
+            ->join('tahun y', "y.aktif = 'Y' AND LEFT(y.tahun, 4) = " . $this->db->escape($active_year_prefix), 'left')
+            ->where('m.stat_data', 'A');
+
+        if ($query !== '') {
+            $this->db->group_start()
+                ->like('m.nama', $query)
+                ->or_like('m.nis', $query)
+                ->or_like('m.nisn', $query)
+                ->group_end();
+        }
 
         if ($booking_type === 'THERAPY') {
-            $this->db->join('student_therapists st', 'st.student_id = m.id', 'inner')
-                ->join('tahun y', 'y.id = st.tahun_id', 'inner')
-                ->where('st.is_active', 1)
-                ->where('y.aktif', 'Y');
+            $this->db->join('student_therapists st', 'st.student_id = m.id AND st.is_active = 1', 'inner')
+                ->join('tahun yt', "yt.id = st.tahun_id AND yt.aktif = 'Y' AND LEFT(yt.tahun, 4) = " . $this->db->escape($active_year_prefix), 'inner')
+                ->where('st.is_active', 1);
         } else {
             $this->db->join('student_therapists st', 'st.student_id = m.id AND st.is_active = 1', 'left')
-                ->join('tahun y', "y.id = st.tahun_id AND y.aktif = 'Y'", 'left')
+                ->join('tahun yt', "yt.id = st.tahun_id AND yt.aktif = 'Y' AND LEFT(yt.tahun, 4) = " . $this->db->escape($active_year_prefix), 'left')
                 ->where('st.id IS NULL', null, false);
         }
 
-        $students = $this->db->order_by('m.nama', 'ASC')
-            ->limit(20)
-            ->get()->result_array();
+        $students = $this->db->order_by('m.nama', 'ASC')->get()->result_array();
 
         $results = array();
         foreach ($students as $student) {
@@ -169,6 +188,87 @@ class Report_distribution_booking extends CI_Controller
         ));
     }
 
+    public function schedule_data()
+    {
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Pragma: no-cache');
+        $code = trim((string) $this->input->get('report_code'));
+        $booking_type = strtoupper(trim((string) $this->input->get('booking_type')));
+        $report = $this->get_report($code);
+
+        if (empty($report) || $report['status'] !== 'PUBLISHED' || !$this->is_booking_open($report) ||
+            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
+            $this->json(array('status' => 'error', 'message' => 'Schedule is currently unavailable.'));
+            return;
+        }
+
+        $dates = $this->db->where('report_distribution_id', $report['id'])
+            ->where('is_active', 1)
+            ->order_by('distribution_date', 'ASC')
+            ->get('report_distribution_dates')->result_array();
+
+        $date_ids = array_column($dates, 'id');
+        $sessions = empty($date_ids) ? array() : $this->db
+            ->where_in('report_distribution_date_id', $date_ids)
+            ->where('is_active', 1)
+            ->order_by('session_number', 'ASC')
+            ->get('report_distribution_sessions')->result_array();
+
+        $booking_counts = array();
+        if (!empty($sessions)) {
+            $session_ids = array_column($sessions, 'id');
+            $count_rows = $this->db->query(
+                'SELECT session_id, booking_type, COUNT(*) AS total
+                 FROM report_distribution_bookings
+                 WHERE session_id IN (' . implode(',', array_fill(0, count($session_ids), '?')) . ')
+                   AND TRIM(LOWER(status)) = ?
+                 GROUP BY session_id, booking_type',
+                array_merge($session_ids, array('booked'))
+            )->result_array();
+            foreach ($count_rows as $count_row) {
+                $booking_counts[$count_row['session_id']][$count_row['booking_type']] = (int) $count_row['total'];
+            }
+        }
+
+        $response_dates = array();
+        foreach ($dates as $date) {
+            $response_dates[] = array(
+                'id' => $date['id'],
+                'label' => $date['label'],
+                'display_date' => date('D, d M Y', strtotime($date['distribution_date']))
+            );
+        }
+
+        $response_sessions = array();
+        foreach ($sessions as $session) {
+            $therapy_booked = isset($booking_counts[$session['id']]['THERAPY'])
+                ? $booking_counts[$session['id']]['THERAPY'] : 0;
+            $non_therapy_booked = isset($booking_counts[$session['id']]['NON_THERAPY'])
+                ? $booking_counts[$session['id']]['NON_THERAPY'] : 0;
+            $therapy_left = $session['therapy_capacity'] === null || $session['therapy_capacity'] === ''
+                ? null : max(0, (int) $session['therapy_capacity'] - $therapy_booked);
+            $non_therapy_left = $session['non_therapy_capacity'] === null || $session['non_therapy_capacity'] === ''
+                ? null : max(0, (int) $session['non_therapy_capacity'] - $non_therapy_booked);
+            $response_sessions[] = array(
+                'id' => $session['id'],
+                'date_id' => $session['report_distribution_date_id'],
+                'display_start' => date('H:i', strtotime($session['start_time'])),
+                'display_end' => date('H:i', strtotime($session['end_time'])),
+                'therapy_left' => $therapy_left,
+                'non_therapy_left' => $non_therapy_left,
+                'therapy_full' => $therapy_left !== null && $therapy_left <= 0,
+                'non_therapy_full' => $non_therapy_left !== null && $non_therapy_left <= 0
+            );
+        }
+
+        $this->json(array(
+            'status' => 'ok',
+            'booking_type' => $booking_type,
+            'dates' => $response_dates,
+            'sessions' => $response_sessions
+        ));
+    }
+
     public function submit()
     {
         $code = trim((string) $this->input->post('report_code'));
@@ -181,11 +281,20 @@ class Report_distribution_booking extends CI_Controller
         $report_collection_method = strtoupper(trim((string) $this->input->post('report_collection_method')));
         $notes = trim((string) $this->input->post('notes'));
 
+        if ($report_collection_method === '') {
+            $report_collection_method = 'ONLINE';
+        } elseif (!in_array($report_collection_method, array('ONLINE', 'ONSITE'), true)) {
+            $report_collection_method = 'ONLINE';
+        }
+
+        if ($notes === '') {
+            $notes = null;
+        }
+
         if ($code === '' || $student_id === '' || $session_id === '' ||
             $parent_name === '' || $parent_phone === '' ||
             !filter_var($parent_email, FILTER_VALIDATE_EMAIL) ||
-            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true) ||
-            !in_array($report_collection_method, array('ONLINE', 'ONSITE'), true)) {
+            !in_array($booking_type, array('THERAPY', 'NON_THERAPY'), true)) {
             $this->json(array('status' => 'error', 'message' => 'Please complete all required booking fields.'));
             return;
         }
@@ -268,7 +377,7 @@ class Report_distribution_booking extends CI_Controller
 
         $booking_count = $this->db->where('session_id', $session_id)
             ->where('booking_type', $booking_type)
-            ->where('status', 'BOOKED')
+            ->where("TRIM(LOWER(status)) = 'booked'", null, false)
             ->count_all_results('report_distribution_bookings');
         $capacity = $booking_type === 'THERAPY'
             ? $session['therapy_capacity']
@@ -860,7 +969,7 @@ class Report_distribution_booking extends CI_Controller
             ->join('report_distribution_dates d', 'd.id = s.report_distribution_date_id')
             ->where('b.report_distribution_id', $report_distribution_id)
             ->where('b.student_id', $student_id)
-            ->where('b.status', 'BOOKED')
+            ->where("TRIM(LOWER(COALESCE(b.status, ''))) <> 'cancelled'", null, false)
             ->order_by('b.booked_at', 'DESC')
             ->get()->row_array();
     }

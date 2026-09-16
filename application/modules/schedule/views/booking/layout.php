@@ -209,6 +209,53 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .session-card {
+            transition: all 0.2s ease;
+        }
+
+        .session-card.session-full {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.08), rgba(220, 53, 69, 0.02));
+            border-color: #dc3545;
+            box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.12);
+            opacity: 0.9;
+        }
+
+        .session-card.session-full .session-time,
+        .session-card.session-full .slot-badge.slot-full {
+            color: #b02a37;
+        }
+
+        .session-slot-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .slot-badge {
+            display: inline-block;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.5;
+            padding: 2px 8px;
+        }
+
+        .slot-badge.slot-available {
+            background: rgba(25, 135, 84, 0.12);
+            color: #146c43;
+        }
+
+        .slot-badge.slot-full {
+            background: rgba(220, 53, 69, 0.12);
+            color: #b02a37;
+        }
+
+        .slot-separator {
+            color: #6c757d;
+        }
+
         .choice-card {
             background: #fff;
             border: 1px solid #ded5d2;

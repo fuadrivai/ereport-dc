@@ -17,6 +17,7 @@ $route['translate_uri_dashes'] = FALSE;
 $route['schedule/registration-list/(:num)'] = 'schedule/schedule/registration_list/$1';
 $route['report-distribution/booking/students'] = 'schedule/report_distribution_booking/students';
 $route['report-distribution/booking/booking-status'] = 'schedule/report_distribution_booking/booking_status';
+$route['report-distribution/booking/schedule-data'] = 'schedule/report_distribution_booking/schedule_data';
 $route['report-distribution/booking/submit'] = 'schedule/report_distribution_booking/submit';
 $route['report-distribution/booking/success/(:any)'] = 'schedule/report_distribution_booking/success/$1';
 $route['report-distribution/booking/(:any)'] = 'schedule/report_distribution_booking/index/$1';
