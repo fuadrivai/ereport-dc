@@ -133,6 +133,7 @@ class Report_distribution_booking extends CI_Controller
         } else {
             $this->db->join('student_therapists st', 'st.student_id = m.id AND st.is_active = 1', 'left')
                 ->join('tahun yt', "yt.id = st.tahun_id AND yt.aktif = 'Y' AND LEFT(yt.tahun, 4) = " . $this->db->escape($active_year_prefix), 'left')
+                ->where('ks.id_siswa IS NOT NULL', null, false)
                 ->where('st.id IS NULL', null, false);
         }
 
