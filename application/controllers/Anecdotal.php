@@ -19,12 +19,17 @@ class Anecdotal extends CI_Controller {
 	{
 		$term = $this->input->get('term');
 		
-		$this->db->select('id, nama as text');
-		$this->db->from('m_siswa');
+		$this->db->select('s.id, s.nama as text');
+		$this->db->from('student_therapists st');
+		$this->db->join('m_siswa s', 's.id = st.student_id');
+		$this->db->join('tahun y', 'y.id = st.tahun_id');
 		if ($term) {
-			$this->db->like('nama', $term);
+			$this->db->like('s.nama', $term);
 		}
-		$this->db->where('stat_data', 'A'); // Only active students
+		$this->db->where('s.stat_data', 'A');
+		$this->db->where('st.is_active', 1);
+		$this->db->where('y.aktif', 'Y');
+		$this->db->distinct();
 		$this->db->limit(10);
 		$query = $this->db->get();
 		
