@@ -24,6 +24,11 @@
 			text-align: center
 		}
 
+		.table td {
+			text-align: justify;
+			text-justify: inter-word;
+		}
+
 		.rgt {
 			text-align: right;
 		}
@@ -47,13 +52,14 @@
 	<table>
 		<tr>
 			<td>
-				<img src="https://report.mhis.link/images/Logo-MH-Transparan-01.png" width="150" style="margin-left:20px">
+				<img src="https://report.mhis.link/images/Logo-MH-Transparan-01.png" width="150"
+					style="margin-left:20px">
 			</td>
 			<td>
 				<p style="text-align: center; margin-left:180px;font-size:24px;"><b>Student’s Progress Report<br>
 						Development Class<br>
 						Academic Year
-						<?php echo $ta; ?>
+						<?=$ta; ?>
 					</b></p>
 			</td>
 		</tr>
@@ -63,40 +69,40 @@
 		<tr>
 			<td style="width:400px">Student’s Name</td>
 			<td style="width:515px">:
-				<?php echo $det_siswa['nama']; ?>
+				<?=$det_siswa['nama']; ?>
 			</td>
 		</tr>
 		<tr>
 			<td style="width:400px">Class’s Name</td>
 			<td style="width:540px">:
-				<?php echo strtoupper($wali_kelas['nmkelas']); ?>
+				<?=strtoupper($wali_kelas['nmkelas']); ?>
 			</td>
 		</tr>
 
 		<tr>
 			<td style="width:400px">Compiled By</td>
 			<td style="width:515px">:
-				<?php echo $wali_kelas['nmguru']; ?>
+				<?=$wali_kelas['nmguru']; ?>
 			</td>
 		</tr>
 		<tr>
 			<td style="width:400px">Acknowledge By</td>
 			<td style="width:515px">:
-				<?php echo $det_raport['nama_kepsek']; ?>
+				<?=$det_raport['nama_kepsek']; ?>
 			</td>
 		</tr>
 		<tr>
 			<td style="width:400px">Reporting Period</td>
 			<td style="width:515px">: <?php $year = date('Y', strtotime($det_raport['tgl_raport']));
-			if($semester ==1){ ; ?>July - Sept<?php }else{?>Jan - Mar<?php } ?> <?php echo $year; ?>
+			if($semester ==1){ ; ?>July - Sept<?php }else{?>Jan - Mar<?php } ?> <?=$year; ?>
 
 			</td>
 		</tr>
 		<tr>
 			<td style="width:400px">Date Submitted</td>
 			<td style="width:515px">:
-					<?php echo $this->config->item('kota'); ?>,
-					<?php echo tjs($det_raport['tgl_raport'], "l"); ?><br>
+				<?=$this->config->item('kota'); ?>,
+				<?=tjs($det_raport['tgl_raport'], "l"); ?><br>
 			</td>
 		</tr>
 	</table>
@@ -110,11 +116,11 @@
 	</table>
 	<table class="table">
 		<tr style="font-weight: bold;text-align: center;">
-			<td style="width:80px;padding: 2px 2px;">Areas of Coverage</td>
-			<td style="width:435px;padding: 2px 2px;">Areas of Achievement</td>
-			<td style="width:435px;padding: 2px 2px;">Follow Up and Recommendation</td>
+			<td style="width:70px;padding: 2px 2px;">Areas of Coverage</td>
+			<td style="width:440px;padding: 2px 2px;">Areas of Achievement</td>
+			<td style="width:440px;padding: 2px 2px;">Follow Up and Recommendation</td>
 		</tr>
-		<?php echo $nilai_utama; ?>
+		<?=$nilai_utama; ?>
 	</table>
 	<br><br>
 
@@ -125,56 +131,56 @@
 			<tr style="font-weight: bold;text-align: center;">
 				<td rowspan="2" style="width:425px;padding: 10px 5px;">Attendance</td>
 				<td style="width:212px;padding: 10px 5px;">Sick</td>
-				<td style="width:212px;padding: 10px 5px;"><?php echo $nilai_absensi['s']??""; ?> Days</td>
+				<td style="width:212px;padding: 10px 5px;"><?=$nilai_absensi['s']??""; ?> Days</td>
 			</tr>
 			<tr style="font-weight: bold;text-align: center;">
 				<td style="width:212px;padding: 10px 5px;">Leave of absence</td>
-				<td style="width:212px;padding: 10px 5px;"><?php echo $nilai_absensi['a']??""; ?> Days</td>
+				<td style="width:212px;padding: 10px 5px;"><?=$nilai_absensi['a']??""; ?> Days</td>
 			</tr>
 
 
 		</table>
 		<br><br>
-			<table>
-				<tr>
-					<td style="width:300px;text-align: center;">
-						Acknowledged by,
-						<br><br><br><br><br><br>
-						<u><b>
-								<?php echo $det_raport['nama_kepsek']; ?>
-							</b></u><br>
-						Head of Development Class
-						<br>
-					</td>
-					<td style="width:380px;text-align: center;">
+		<table>
+			<tr>
+				<td style="width:300px;text-align: center;">
+					Acknowledged by,
+					<br><br><br><br><br><br>
+					<u><b>
+							<?=$det_raport['nama_kepsek']; ?>
+						</b></u><br>
+					Head of Development Class
+					<br>
+				</td>
+				<td style="width:380px;text-align: center;">
 
-					</td>
-					<td></td>
-					<td style="text-align: center;">
-						<?php
+				</td>
+				<td></td>
+				<td style="text-align: center;">
+					<?php
 						if ($wali_kelas['tingkat'] != 9) {
 							?>
-							<?php echo $this->config->item('kota'); ?>,
-							<?php echo tjs($det_raport['tgl_raport'], "l"); ?><br>
-						<?php } else { ?>
-							<?php echo $this->config->item('kota'); ?>,
-							<?php echo tjs($det_raport['tgl_raport_kelas3'], "l"); ?><br>
-						<?php } ?>
-						<br><br><br><br><br>
-						<u><b>
-								<?php echo $wali_kelas['nmguru']; ?><br>
-							</b></u>Homeroom Teacher<br>
-					</td>
-				</tr>
-				<tr>
-					<td style="text-align: center;">
-					</td>
-					<td style="text-align: center;">
+					<?=$this->config->item('kota'); ?>,
+					<?=tjs($det_raport['tgl_raport'], "l"); ?><br>
+					<?php } else { ?>
+					<?=$this->config->item('kota'); ?>,
+					<?=tjs($det_raport['tgl_raport_kelas3'], "l"); ?><br>
+					<?php } ?>
+					<br><br><br><br><br>
+					<u><b>
+							<?=$wali_kelas['nmguru']; ?><br>
+						</b></u>Homeroom Teacher<br>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: center;">
+				</td>
+				<td style="text-align: center;">
 
-					</td>
-					<td></td>
-					<td style="text-align: center;">
-					</td>
-				</tr>
-			</table>
+				</td>
+				<td></td>
+				<td style="text-align: center;">
+				</td>
+			</tr>
+		</table>
 	</page>
