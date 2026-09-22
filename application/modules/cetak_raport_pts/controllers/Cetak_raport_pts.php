@@ -2579,9 +2579,9 @@ class Cetak_raport_pts extends CI_Controller
 
             $d['nilai_utama'] .= '
             <tr>
-                                    <td style="width:70px;padding: 3px 3px;">' . $m['nama'] . '</td>
-                                    <td style="width:440px;padding: 3px 3px;">' . $catatan . '</td>
-                                    <td style="width:440px;padding: 3px 3px;">' . $performance . '</td> 
+                                    <td style="width:80px;padding: 3px 3px; text-align:center;">' . $m['nama'] . '</td>
+                                    <td style="width:440px;padding: 3px 3px; text-align:justify; text-justify: inter-word;">' . $catatan . '</td>
+                                    <td style="width:440px;padding: 3px 3px; text-align:justify; text-justify: inter-word;">' . $performance . '</td> 
                                     </tr>';
         }
         // $q_catatan_nna = $this->db->query("SELECT 

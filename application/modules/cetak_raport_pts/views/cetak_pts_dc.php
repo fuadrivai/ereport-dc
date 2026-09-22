@@ -29,6 +29,12 @@
 			text-justify: inter-word;
 		}
 
+		.table tr td:first-child,
+		.table>tbody>tr>td:first-child {
+			text-align: center !important;
+			text-justify: auto;
+		}
+
 		.rgt {
 			text-align: right;
 		}
@@ -116,7 +122,7 @@
 	</table>
 	<table class="table">
 		<tr style="font-weight: bold;text-align: center;">
-			<td style="width:70px;padding: 2px 2px;">Areas of Coverage</td>
+			<td style="width:80px;padding: 2px 2px;">Areas of Coverage</td>
 			<td style="width:440px;padding: 2px 2px;">Areas of Achievement</td>
 			<td style="width:440px;padding: 2px 2px;">Follow Up and Recommendation</td>
 		</tr>
