@@ -47,16 +47,16 @@
                                             ?>
                                             <?php if ($_th == $sk['ta']) { ?>
                                                 <?php if ($tglmid <= $today) { ?>
-                                                    <a href="<?= base_url() . "cetak_raport_pts" . "/cetak_dc/" . $sk['id_siswa'] . "/" . $th['tahun']; ?>" class="btn btn-success btn-sm" target="_blank"><i class="fa fa-print"></i> Midterm Report</a>
+                                                    <a href="<?= base_url('cetak_raport_pts/cetak_dc/' . (int) $sk['id_siswa'] . '/' . rawurlencode($th['tahun'])); ?>" class="btn btn-success btn-sm"><i class="fa fa-print"></i> Midterm Report</a>
                                                 <?php } ?>
                                                 <?php if ($tglfinal <= $today) { ?>
                                                     <?php if($sk['tingkat'] == '1' || $sk['tingkat'] == '2' || $sk['tingkat'] == '3' || $sk['tingkat'] == '4' || $sk['tingkat'] == '5' || $sk['tingkat'] == '6'){ ?>
-                                                        <a href="https://report.mhis.link/bintaro/dc/cetak_raport/cetak_sd/<?php echo $sk['id_siswa']."/".$th['tahun']; ?>" class="btn btn-success btn-sm" target="_blank"><i  class="fa fa-print"></i> Final Raport</a>
+                                                        <a href="<?= base_url('cetak_raport/cetak_sd/' . (int) $sk['id_siswa'] . '/' . rawurlencode($th['tahun'])); ?>" class="btn btn-success btn-sm"><i  class="fa fa-print"></i> Final Raport</a>
                                                     <?php } else { ?>
-                                                        <a href="https://report.mhis.link/bintaro/dc/cetak_raport/cetak/<?php echo $sk['id_siswa']."/".$th['tahun']; ?>" class="btn btn-success btn-sm" target="_blank"><i  class="fa fa-print"></i> Final Raport</a>
+                                                        <a href="<?= base_url('cetak_raport/cetak/' . (int) $sk['id_siswa'] . '/' . rawurlencode($th['tahun'])); ?>" class="btn btn-success btn-sm"><i  class="fa fa-print"></i> Final Raport</a>
                                                     <?php }?>
                                                     
-                                                    <a href="https://report.mhis.link/bintaro/dc/cetak_raport/cetak_projek/<?php echo $sk['id_siswa'] . "/" . $th['tahun']; ?>" target="_blank" class="btn btn-success btn-sm"><i class="fa fa-print"></i> Report Project P5</a>
+                                                    <a href="<?= base_url('cetak_raport/cetak_projek/' . (int) $sk['id_siswa'] . '/' . rawurlencode($th['tahun'])); ?>" class="btn btn-success btn-sm"><i class="fa fa-print"></i> Report Project P5</a>
                                                 <?php } ?>
                                             <?php } ?>
                                         <?php } ?>

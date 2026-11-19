@@ -151,6 +151,7 @@ function generate_menu($level, $is_wali = false)
 					<li><a href="' . base_url() . 'backup_db"><i class="pe-7s-server"></i><p>Backup Data</p></a></li>
 					<li><a href="' . base_url() . 'kehadiran/kelas"><i class="pe-7s-bookmarks"></i><p>Attendance</p></a></li>
 					<li><a href="' . base_url() . 'tahun"><i class="pe-7s-date"></i><p>Set Tahun Aktif</p></a></li>
+					<li><a href="' . base_url() . 'stakeholder_survey"><i class="pe-7s-note2"></i><p>Stakeholder Survey</p></a></li>
 					<li class="dropdown">
 						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="pe-7s-add-user"></i><p>Kelas</p></a>
 						<ul class="dropdown-menu" role="menu" style="background-color: #1F77D0;">

@@ -17,6 +17,40 @@ class Cetak_raport_pts extends CI_Controller
         $this->d['ta'] = substr($get_tasm['tahun'], 0, 4);
 
         $this->d['wk'] = $this->session->userdata('app_rapot_walikelas');
+        $this->load->model('stakeholder_survey/Stakeholder_survey_model', 'stakeholder_survey');
+    }
+
+    private function enforce_survey($id_siswa, $tasm, $report_type)
+    {
+        $level = $this->session->userdata($this->sespre . 'level');
+        $logged_student = (int) $this->session->userdata($this->sespre . 'konid');
+        if (empty($level)) {
+            redirect('login');
+            exit;
+        }
+        if ($level !== 'siswa') {
+            return;
+        }
+        if ($logged_student !== (int) $id_siswa) {
+            show_error('Anda tidak memiliki akses ke raport siswa ini.', 403);
+            exit;
+        }
+
+        $tahun = $this->db->where('tahun', (string) $tasm)->get('tahun')->row_array();
+        if (!$tahun) {
+            return;
+        }
+        $survey = $this->stakeholder_survey->get_survey((int) $tahun['id'], $report_type);
+        if (!$survey) {
+            return;
+        }
+        if ($this->stakeholder_survey->is_completed((int) $survey['id'], $logged_student)) {
+            return;
+        }
+
+        $this->session->set_userdata('stakeholder_survey_redirect', current_url());
+        redirect('stakeholder_survey/form/' . $survey['id'] . '/' . $report_type . '/' . $logged_student);
+        exit;
     }
 
     public function sampul1($id_siswa)
@@ -72,6 +106,7 @@ class Cetak_raport_pts extends CI_Controller
 
     public function cetak($id_siswa, $tasm)
     {
+        $this->enforce_survey($id_siswa, $tasm, 'MIDTERM');
         ob_start();
         $d = array();
 
@@ -1124,6 +1159,7 @@ class Cetak_raport_pts extends CI_Controller
 
     public function cetak_sd($id_siswa, $tasm)
     {
+        $this->enforce_survey($id_siswa, $tasm, 'MIDTERM');
         ob_start();
         $d = array();
 
@@ -2054,6 +2090,7 @@ class Cetak_raport_pts extends CI_Controller
 
     public function cetak_dc($id_siswa, $tasm)
     {
+        $this->enforce_survey($id_siswa, $tasm, 'MIDTERM');
         ob_start();
         $d = array();
 
