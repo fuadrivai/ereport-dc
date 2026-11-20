@@ -461,7 +461,11 @@ class Stakeholder_survey extends CI_Controller
             show_404();
             return;
         }
-        if ($this->survey->is_completed($survey_id, $student_id)) {
+        $class_id = $this->survey->get_student_class_id($student_id, $tahun['tahun']);
+        if (
+            $this->survey->is_completed($survey_id, $student_id)
+            && !$this->survey->has_unanswered_questions($survey_id, $student_id, $class_id)
+        ) {
             $redirect_url = $this->session->userdata('stakeholder_survey_redirect');
             if ($redirect_url) {
                 redirect($redirect_url);
@@ -471,7 +475,6 @@ class Stakeholder_survey extends CI_Controller
             return;
         }
 
-        $class_id = $this->survey->get_student_class_id($student_id, $tahun['tahun']);
         $questions = $this->survey->get_applicable_questions($survey['id'], $class_id);
 
         $this->d['p'] = 'parent/form';
@@ -482,7 +485,10 @@ class Stakeholder_survey extends CI_Controller
         $this->d['questions'] = $questions;
         $this->d['report_type'] = $report_type;
         $this->d['survey_error'] = $this->session->flashdata('survey_error');
-        $this->d['old_answers'] = $this->session->flashdata('survey_answers');
+        $old_answers = $this->session->flashdata('survey_answers');
+        $this->d['old_answers'] = !empty($old_answers)
+            ? (array) $old_answers
+            : $this->survey->get_old_answers($survey_id, $student_id);
         $this->load->view('parent/form', $this->d);
     }
 
@@ -521,7 +527,15 @@ class Stakeholder_survey extends CI_Controller
         if (!$survey) {
             return true;
         }
-        if ($this->survey->is_completed((int) $survey['id'], $student_id)) {
+        $tahun = $this->db->where('id', (int) $survey['tahun_id'])->get('tahun')->row_array();
+        if (!$tahun) {
+            return true;
+        }
+        $class_id = $this->survey->get_student_class_id($student_id, $tahun['tahun']);
+        if (
+            $this->survey->is_completed((int) $survey['id'], $student_id)
+            && !$this->survey->has_unanswered_questions((int) $survey['id'], $student_id, $class_id)
+        ) {
             return true;
         }
 

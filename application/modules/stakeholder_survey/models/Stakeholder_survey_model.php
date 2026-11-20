@@ -81,6 +81,42 @@ class Stakeholder_survey_model extends CI_Model
             ->count_all_results('stakeholder_survey_responses') > 0;
     }
 
+    public function get_old_answers($survey_id, $student_id)
+    {
+        $response = $this->db
+            ->where('survey_id', (int) $survey_id)
+            ->where('student_id', (int) $student_id)
+            ->get('stakeholder_survey_responses')
+            ->row_array();
+        if (!$response) {
+            return array();
+        }
+
+        $answers = $this->db
+            ->where('response_id', (int) $response['id'])
+            ->get('stakeholder_survey_answers')
+            ->result_array();
+        $old_answers = array();
+        foreach ($answers as $answer) {
+            $old_answers[(int) $answer['question_id']] = $answer['answer'];
+        }
+        return $old_answers;
+    }
+
+    public function has_unanswered_questions($survey_id, $student_id, $class_id)
+    {
+        $questions = $this->get_applicable_questions($survey_id, $class_id);
+        $old_answers = $this->get_old_answers($survey_id, $student_id);
+
+        foreach ($questions as $question) {
+            $question_id = (int) $question['id'];
+            if (!array_key_exists($question_id, $old_answers) || trim((string) $old_answers[$question_id]) === '') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function save_submission($survey_id, $parent_id, $student_id, $answers)
     {
         $survey = $this->db
@@ -183,10 +219,6 @@ class Stakeholder_survey_model extends CI_Model
             ->row_array();
 
         if ($existing) {
-            if ($existing['status'] === 'COMPLETED') {
-                $this->db->trans_rollback();
-                return array('ok' => false, 'error' => 'This survey has already been submitted.');
-            }
             $response_id = (int) $existing['id'];
             $this->db
                 ->where('id', $response_id)
