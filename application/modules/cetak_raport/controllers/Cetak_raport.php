@@ -2981,7 +2981,6 @@ class Cetak_raport extends CI_Controller
     }
     public function cetak_projek($id_siswa, $tasm)
     {
-        $this->enforce_survey($id_siswa, $tasm, 'FINAL');
         ob_start();
         $d = array();
         ini_set('display_errors', 0);
