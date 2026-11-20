@@ -44,7 +44,11 @@ class Cetak_raport_pts extends CI_Controller
         if (!$survey) {
             return;
         }
-        if ($this->stakeholder_survey->is_completed((int) $survey['id'], $logged_student)) {
+        $class_id = $this->stakeholder_survey->get_student_class_id($logged_student, $tahun['tahun']);
+        if (
+            $this->stakeholder_survey->is_completed((int) $survey['id'], $logged_student)
+            && !$this->stakeholder_survey->has_unanswered_questions((int) $survey['id'], $logged_student, $class_id)
+        ) {
             return;
         }
 

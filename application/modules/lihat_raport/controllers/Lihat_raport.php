@@ -474,9 +474,16 @@ class Lihat_raport extends CI_Controller {
 
         $wali = $this->session->userdata($this->sespre."walikelas");
 
-        $this->d['siswa_kelas'] = $this->db->query("SELECT a.id_siswa,a.id_kelas,b.tingkat,a.ta FROM t_kelas_siswa a
-                                                    INNER JOIN m_kelas b ON b.id = a.id_kelas
-                                                    WHERE a.id_siswa = ".$this->d['admkonid']."")->result_array();
+        $student_id = (int) $this->d['admkonid'];
+        $this->d['siswa_kelas'] = $student_id > 0
+            ? $this->db->query("SELECT a.id_siswa,a.id_kelas,b.tingkat,a.ta FROM t_kelas_siswa a
+                                INNER JOIN m_kelas b ON b.id = a.id_kelas
+                                WHERE a.id_siswa = " . $student_id . "
+                                UNION
+                                SELECT a.id_siswa,a.id_kelas,b.tingkat,a.ta FROM t_kelas_siswa_reguler a
+                                INNER JOIN m_kelas b ON b.id = a.id_kelas
+                                WHERE a.id_siswa = " . $student_id)->result_array()
+            : array();
         $this->d['tahun'] = $this->db->query("SELECT * FROM tahun")->result_array();
         
     	$this->d['p'] = "list-copy";
