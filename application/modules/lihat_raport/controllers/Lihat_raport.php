@@ -476,13 +476,21 @@ class Lihat_raport extends CI_Controller {
 
         $student_id = (int) $this->d['admkonid'];
         $this->d['siswa_kelas'] = $student_id > 0
-            ? $this->db->query("SELECT a.id_siswa,a.id_kelas,b.tingkat,a.ta FROM t_kelas_siswa a
-                                INNER JOIN m_kelas b ON b.id = a.id_kelas
-                                WHERE a.id_siswa = " . $student_id . "
-                                UNION
-                                SELECT a.id_siswa,a.id_kelas,b.tingkat,a.ta FROM t_kelas_siswa_reguler a
-                                INNER JOIN m_kelas b ON b.id = a.id_kelas
-                                WHERE a.id_siswa = " . $student_id)->result_array()
+            ? $this->db->query(
+                "SELECT r.id_siswa,r.id_kelas,m.tingkat,r.ta
+                 FROM t_kelas_siswa_reguler r
+                 INNER JOIN m_kelas m ON m.id = r.id_kelas
+                 WHERE r.id_siswa = " . $student_id . "
+                 UNION ALL
+                 SELECT n.id_siswa,n.id_kelas,m.tingkat,n.ta
+                 FROM t_kelas_siswa n
+                 INNER JOIN m_kelas m ON m.id = n.id_kelas
+                 WHERE n.id_siswa = " . $student_id . "
+                   AND NOT EXISTS (
+                     SELECT 1 FROM t_kelas_siswa_reguler r
+                     WHERE r.id_siswa = n.id_siswa AND r.ta = n.ta
+                   )"
+              )->result_array()
             : array();
         $this->d['tahun'] = $this->db->query("SELECT * FROM tahun")->result_array();
         
