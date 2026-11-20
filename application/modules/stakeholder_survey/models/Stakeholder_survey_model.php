@@ -88,7 +88,7 @@ class Stakeholder_survey_model extends CI_Model
             ->row_array();
 
         if (!$survey) {
-            return array('ok' => false, 'error' => 'Survey tidak tersedia.');
+            return array('ok' => false, 'error' => 'Survey is unavailable.');
         }
 
         $tahun = $this->db
@@ -97,7 +97,7 @@ class Stakeholder_survey_model extends CI_Model
             ->row_array();
 
         if (!$tahun) {
-            return array('ok' => false, 'error' => 'Tahun ajaran tidak ditemukan.');
+            return array('ok' => false, 'error' => 'Academic year not found.');
         }
 
         $class_id = $this->get_student_class_id($student_id, $tahun['tahun']);
@@ -110,7 +110,7 @@ class Stakeholder_survey_model extends CI_Model
             $value = isset($answers[$question_id]) ? trim($answers[$question_id]) : '';
 
             if ($question['is_required'] === 'Y' && $value === '') {
-                $errors[] = 'Pertanyaan wajib belum diisi.';
+                $errors[] = 'Required questions have not been answered.';
                 continue;
             }
 
@@ -132,12 +132,12 @@ class Stakeholder_survey_model extends CI_Model
                     ->get('stakeholder_survey_question_options')
                     ->row_array();
                 if (!$option) {
-                    $errors[] = 'Pilihan radio tidak valid.';
+                    $errors[] = 'Invalid radio option.';
                     continue;
                 }
             } elseif ($question['question_type'] === 'ESSAY') {
                 if (!empty($question['max_length']) && strlen($value) > (int) $question['max_length']) {
-                    $errors[] = 'Jawaban essay melebihi batas karakter.';
+                    $errors[] = 'Essay answer exceeds the character limit.';
                     continue;
                 }
             }
@@ -160,7 +160,7 @@ class Stakeholder_survey_model extends CI_Model
         if ($existing) {
             if ($existing['status'] === 'COMPLETED') {
                 $this->db->trans_rollback();
-                return array('ok' => false, 'error' => 'Survei ini sudah pernah dikirim.');
+                return array('ok' => false, 'error' => 'This survey has already been submitted.');
             }
             $response_id = (int) $existing['id'];
             $this->db
@@ -197,7 +197,7 @@ class Stakeholder_survey_model extends CI_Model
         $this->db->trans_complete();
 
         if (!$this->db->trans_status()) {
-            return array('ok' => false, 'error' => 'Survey gagal disimpan.');
+            return array('ok' => false, 'error' => 'Survey could not be saved.');
         }
 
         return array('ok' => true);

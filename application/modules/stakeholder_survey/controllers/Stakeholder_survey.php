@@ -73,10 +73,10 @@ class Stakeholder_survey extends CI_Controller
             $data[] = array(
                 $row['tahun'] . ' - ' . $row['report_type'],
                 htmlspecialchars($row['title']),
-                $row['is_mandatory'] === 'Y' ? 'Ya' : 'Tidak',
-                $row['is_active'] === 'Y' ? 'Aktif' : 'Tidak aktif',
-                '<a class="btn btn-xs btn-info" href="' . base_url('stakeholder_survey/edit/' . $row['id']) . '">Kelola</a> '
-                . '<a class="btn btn-xs btn-success" href="' . base_url('stakeholder_survey/results/' . $row['id']) . '">Hasil</a>'
+                $row['is_mandatory'] === 'Y' ? 'Yes' : 'No',
+                $row['is_active'] === 'Y' ? 'Active' : 'Inactive',
+                '<a class="btn btn-xs btn-info" href="' . base_url('stakeholder_survey/edit/' . $row['id']) . '">Manage</a> '
+                . '<a class="btn btn-xs btn-success" href="' . base_url('stakeholder_survey/results/' . $row['id']) . '">Results</a>'
             );
         }
         j(array('data' => $data));
@@ -120,7 +120,7 @@ class Stakeholder_survey extends CI_Controller
         $report_type = strtoupper(trim($this->input->post('report_type')));
 
         if ($tahun_id < 1 || !in_array($report_type, array('MIDTERM', 'FINAL'), true)) {
-            j(array('status' => 'gagal', 'data' => 'Data survei tidak valid.'));
+            j(array('status' => 'failed', 'data' => 'Invalid survey data.'));
             return;
         }
 
@@ -131,7 +131,7 @@ class Stakeholder_survey extends CI_Controller
             ->get('stakeholder_surveys')
             ->row_array();
         if ($existing) {
-            j(array('status' => 'gagal', 'data' => 'Survei untuk tahun ajaran dan tipe raport tersebut sudah ada.'));
+            j(array('status' => 'failed', 'data' => 'A survey already exists for this academic year and report type.'));
             return;
         }
 
@@ -155,7 +155,7 @@ class Stakeholder_survey extends CI_Controller
             $id = (int) $this->db->insert_id();
         }
 
-        j(array('status' => 'ok', 'data' => 'Survei berhasil disimpan.', 'id' => $id));
+        j(array('status' => 'ok', 'data' => 'Survey saved successfully.', 'id' => $id));
     }
 
     public function save_question()
@@ -165,7 +165,7 @@ class Stakeholder_survey extends CI_Controller
         $question_id = (int) $this->input->post('question_id');
         $type = strtoupper(trim($this->input->post('question_type')));
         if (!in_array($type, array('RATING', 'RADIO', 'ESSAY'), true) || $survey_id < 1) {
-            j(array('status' => 'gagal', 'data' => 'Data pertanyaan tidak valid.'));
+            j(array('status' => 'failed', 'data' => 'Invalid question data.'));
             return;
         }
 
@@ -176,7 +176,7 @@ class Stakeholder_survey extends CI_Controller
                 ->get('stakeholder_survey_questions')
                 ->row_array();
             if (!$question) {
-                j(array('status' => 'gagal', 'data' => 'Pertanyaan tidak ditemukan.'));
+                j(array('status' => 'failed', 'data' => 'Question not found.'));
                 return;
             }
 
@@ -184,7 +184,7 @@ class Stakeholder_survey extends CI_Controller
                 ->where('question_id', $question_id)
                 ->count_all_results('stakeholder_survey_answers') > 0;
             if ($has_answers) {
-                j(array('status' => 'gagal', 'data' => 'Pertanyaan tidak dapat diubah karena sudah memiliki jawaban.'));
+                j(array('status' => 'failed', 'data' => 'This question cannot be changed because it already has answers.'));
                 return;
             }
         }
@@ -238,7 +238,7 @@ class Stakeholder_survey extends CI_Controller
             }
         }
 
-        j(array('status' => 'ok', 'data' => 'Pertanyaan berhasil disimpan.'));
+        j(array('status' => 'ok', 'data' => 'Question saved successfully.'));
     }
 
     public function delete_question($question_id)
@@ -249,11 +249,11 @@ class Stakeholder_survey extends CI_Controller
             ->where('question_id', $question_id)
             ->count_all_results('stakeholder_survey_answers') > 0;
         if ($has_answers) {
-            j(array('status' => 'gagal', 'data' => 'Pertanyaan tidak dapat dihapus karena sudah memiliki jawaban.'));
+            j(array('status' => 'failed', 'data' => 'This question cannot be deleted because it already has answers.'));
             return;
         }
         $this->db->where('id', $question_id)->delete('stakeholder_survey_questions');
-        j(array('status' => 'ok', 'data' => 'Pertanyaan berhasil dihapus.'));
+        j(array('status' => 'ok', 'data' => 'Question deleted successfully.'));
     }
 
     public function preview($survey_id)
@@ -389,7 +389,7 @@ class Stakeholder_survey extends CI_Controller
         $report_type = strtoupper($report_type);
         $student_id = (int) $student_id;
         if ($student_id !== $logged_student_id) {
-            show_error('Anda tidak memiliki akses ke survei siswa ini.', 403);
+            show_error('You do not have access to this student survey.', 403);
             return;
         }
 
