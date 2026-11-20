@@ -202,8 +202,18 @@
         <?php if ($question['question_type'] === 'RATING'): ?>
           <div class="rating-preview" aria-label="Rating from 1 to 5">
             <?php for ($i = 1; $i <= 5; $i++): ?>
-              <span><?= $i; ?></span>
+              <?php $label = isset($question['options'][$i - 1]) ? $question['options'][$i - 1]['option_label'] : 'Rating ' . $i; ?>
+              <div style="text-align:center;">
+                <span><?= $i; ?></span>
+                <div style="max-width:90px;margin-top:5px;font-size:11px;color:#738396;"><?= htmlspecialchars($label); ?></div>
+              </div>
             <?php endfor; ?>
+          </div>
+        <?php elseif ($question['question_type'] === 'CHECKBOX'): ?>
+          <div class="radio-preview">
+            <?php foreach ($question['options'] as $option): ?>
+              <label><input type="checkbox" disabled> <?= htmlspecialchars($option['option_label']); ?></label>
+            <?php endforeach; ?>
           </div>
         <?php elseif ($question['question_type'] === 'RADIO'): ?>
           <div class="radio-preview">

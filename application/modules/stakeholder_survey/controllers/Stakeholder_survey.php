@@ -164,7 +164,7 @@ class Stakeholder_survey extends CI_Controller
         $survey_id = (int) $this->input->post('survey_id');
         $question_id = (int) $this->input->post('question_id');
         $type = strtoupper(trim($this->input->post('question_type')));
-        if (!in_array($type, array('RATING', 'RADIO', 'ESSAY'), true) || $survey_id < 1) {
+        if (!in_array($type, array('RATING', 'RADIO', 'CHECKBOX', 'ESSAY'), true) || $survey_id < 1) {
             j(array('status' => 'failed', 'data' => 'Invalid question data.'));
             return;
         }
@@ -222,7 +222,7 @@ class Stakeholder_survey extends CI_Controller
         }
 
         $this->db->where('question_id', $question_id)->delete('stakeholder_survey_question_options');
-        if ($type === 'RADIO') {
+        if ($type === 'RADIO' || $type === 'CHECKBOX') {
             $labels = (array) $this->input->post('option_label');
             foreach ($labels as $index => $label) {
                 $label = trim($label);
@@ -235,6 +235,18 @@ class Stakeholder_survey extends CI_Controller
                         'updated_at' => $now
                     ));
                 }
+            }
+        } elseif ($type === 'RATING') {
+            $labels = (array) $this->input->post('rating_label');
+            for ($rating = 1; $rating <= 5; $rating++) {
+                $label = trim(isset($labels[$rating - 1]) ? $labels[$rating - 1] : '');
+                $this->db->insert('stakeholder_survey_question_options', array(
+                    'question_id' => $question_id,
+                    'option_label' => $label !== '' ? $label : 'Rating ' . $rating,
+                    'sort_order' => $rating - 1,
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ));
             }
         }
 
@@ -312,13 +324,21 @@ class Stakeholder_survey extends CI_Controller
                         $sum += $value;
                     }
                 }
-                $row['summary'] = array('distribution' => $distribution, 'average' => $row['total'] > 0 ? round($sum / $row['total'], 2) : 0);
-            } elseif ($question['question_type'] === 'RADIO') {
+                $options = $this->db->where('question_id', (int) $question['id'])->order_by('sort_order', 'ASC')->get('stakeholder_survey_question_options')->result_array();
+                $labels = array();
+                foreach ($options as $index => $option) {
+                    $labels[$index + 1] = $option['option_label'];
+                }
+                $row['summary'] = array('distribution' => $distribution, 'labels' => $labels, 'average' => $row['total'] > 0 ? round($sum / $row['total'], 2) : 0);
+            } elseif ($question['question_type'] === 'RADIO' || $question['question_type'] === 'CHECKBOX') {
                 $options = $this->db->where('question_id', (int) $question['id'])->order_by('sort_order', 'ASC')->get('stakeholder_survey_question_options')->result_array();
                 foreach ($options as $option) {
                     $count = 0;
                     foreach ($answers as $answer) {
-                        if ((int) $answer['answer'] === (int) $option['id']) {
+                        $selected = $question['question_type'] === 'CHECKBOX'
+                            ? array_map('intval', explode(',', (string) $answer['answer']))
+                            : array((int) $answer['answer']);
+                        if (in_array((int) $option['id'], $selected, true)) {
                             $count++;
                         }
                     }
@@ -369,7 +389,39 @@ class Stakeholder_survey extends CI_Controller
                     ->where('question_id', (int) $question['id'])
                     ->get('stakeholder_survey_answers')
                     ->row_array();
-                $sheet->setCellValueByColumnAndRow($question_index + 2, $row_index + 2, $answer ? $answer['answer'] : '');
+                $answer_text = $answer ? $answer['answer'] : '';
+                if ($answer && $question['question_type'] === 'CHECKBOX') {
+                    $option_labels = array();
+                    foreach (array_map('intval', explode(',', $answer_text)) as $option_id) {
+                        $option = $this->db
+                            ->where('id', $option_id)
+                            ->where('question_id', (int) $question['id'])
+                            ->get('stakeholder_survey_question_options')
+                            ->row_array();
+                        if ($option) {
+                            $option_labels[] = $option['option_label'];
+                        }
+                    }
+                    $answer_text = implode(', ', $option_labels);
+                } elseif ($answer && $question['question_type'] === 'RADIO') {
+                    $option = $this->db
+                        ->where('id', (int) $answer_text)
+                        ->where('question_id', (int) $question['id'])
+                        ->get('stakeholder_survey_question_options')
+                        ->row_array();
+                    $answer_text = $option ? $option['option_label'] : $answer_text;
+                } elseif ($answer && $question['question_type'] === 'RATING') {
+                    $rating = (int) $answer_text;
+                    $option = $this->db
+                        ->where('question_id', (int) $question['id'])
+                        ->order_by('sort_order', 'ASC')
+                        ->get('stakeholder_survey_question_options')
+                        ->result_array();
+                    $answer_text = isset($option[$rating - 1])
+                        ? $rating . ' - ' . $option[$rating - 1]['option_label']
+                        : $answer_text;
+                }
+                $sheet->setCellValueByColumnAndRow($question_index + 2, $row_index + 2, $answer_text);
             }
         }
 

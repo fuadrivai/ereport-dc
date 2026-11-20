@@ -510,6 +510,9 @@ $old_answers = is_array($old_answers) ? $old_answers : array();
               <div class="rating-options">
                 <?php
                   $rating_labels = array(1 => 'Very low', 2 => 'Low', 3 => 'Neutral', 4 => 'Good', 5 => 'Great');
+                  foreach ($question['options'] as $rating_index => $rating_option) {
+                    $rating_labels[$rating_index + 1] = $rating_option['option_label'];
+                  }
                   for ($rating = 1; $rating <= 5; $rating++):
                     $checked = isset($old_answers[$question['id']]) && (int) $old_answers[$question['id']] === $rating;
                     $input_id = 'q' . (int) $question['id'] . '-rating-' . $rating;
@@ -521,6 +524,25 @@ $old_answers = is_array($old_answers) ? $old_answers : array();
                 <?php endfor; ?>
               </div>
               <div class="rating-scale"><span>Very dissatisfied</span><span>Very satisfied</span></div>
+
+            <?php elseif ($question['question_type'] === 'CHECKBOX'): ?>
+              <div class="choice-list">
+                <?php
+                  $old_checkbox_answers = isset($old_answers[$question['id']])
+                    ? (is_array($old_answers[$question['id']]) ? $old_answers[$question['id']] : explode(',', (string) $old_answers[$question['id']]))
+                    : array();
+                ?>
+                <?php foreach ($question['options'] as $option): ?>
+                  <?php
+                    $input_id = 'q' . (int) $question['id'] . '-checkbox-' . (int) $option['id'];
+                    $checked = in_array((string) $option['id'], array_map('strval', $old_checkbox_answers), true);
+                  ?>
+                  <label class="choice-option" for="<?= $input_id; ?>">
+                    <input id="<?= $input_id; ?>" type="checkbox" name="answers[<?= (int) $question['id']; ?>][]" value="<?= (int) $option['id']; ?>" <?= $checked ? 'checked' : ''; ?>>
+                    <span><i class="choice-mark" aria-hidden="true"></i><?= $escape($option['option_label']); ?></span>
+                  </label>
+                <?php endforeach; ?>
+              </div>
 
             <?php elseif ($question['question_type'] === 'RADIO'): ?>
               <div class="choice-list">
@@ -572,8 +594,9 @@ $old_answers = is_array($old_answers) ? $old_answers : array();
         var answered = 0;
         questions.forEach(function (question) {
           var selected = question.querySelector('input[type="radio"]:checked');
+          var checked = question.querySelector('input[type="checkbox"]:checked');
           var text = question.querySelector('textarea');
-          if (selected || (text && text.value.trim() !== '')) answered++;
+          if (selected || checked || (text && text.value.trim() !== '')) answered++;
         });
 
         answeredCount.textContent = answered;

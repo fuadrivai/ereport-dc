@@ -6,8 +6,10 @@
     <hr><h4><?= htmlspecialchars($result['question']['question']); ?> (<?= (int) $result['total']; ?> answers)</h4>
     <?php if ($result['question']['question_type'] === 'RATING'): ?>
       <p>Average: <?= htmlspecialchars($result['summary']['average']); ?></p>
-      <?php foreach ($result['summary']['distribution'] as $value => $count): ?><span>Rating <?= $value; ?>: <?= (int) $count; ?></span><br><?php endforeach; ?>
-    <?php elseif ($result['question']['question_type'] === 'RADIO'): ?>
+      <?php foreach ($result['summary']['distribution'] as $value => $count): ?>
+        <span>Rating <?= $value; ?> — <?= htmlspecialchars($result['summary']['labels'][$value]); ?>: <?= (int) $count; ?></span><br>
+      <?php endforeach; ?>
+    <?php elseif ($result['question']['question_type'] === 'RADIO' || $result['question']['question_type'] === 'CHECKBOX'): ?>
       <?php foreach ($result['summary'] as $option): ?><span><?= htmlspecialchars($option['label']); ?>: <?= (int) $option['count']; ?></span><br><?php endforeach; ?>
     <?php else: ?>
       <ul><?php foreach ($result['summary'] as $answer): ?><li><?= nl2br(htmlspecialchars($answer)); ?></li><?php endforeach; ?></ul>

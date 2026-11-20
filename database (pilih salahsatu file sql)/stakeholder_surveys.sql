@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS stakeholder_survey_questions (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   survey_id INT UNSIGNED NOT NULL,
   question TEXT NOT NULL,
-  question_type ENUM('RATING','RADIO','ESSAY') NOT NULL,
+  question_type ENUM('RATING','RADIO','CHECKBOX','ESSAY') NOT NULL,
   is_required ENUM('Y','N') NOT NULL DEFAULT 'Y',
   max_length INT UNSIGNED NULL,
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,

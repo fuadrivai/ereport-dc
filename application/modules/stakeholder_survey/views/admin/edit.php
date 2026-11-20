@@ -178,8 +178,20 @@
             <div class="col-sm-9"><select name="question_type" id="question_type" class="form-control">
                 <option value="RATING">Rating 1-5</option>
                 <option value="RADIO">Radio</option>
+                <option value="CHECKBOX">Checkbox</option>
                 <option value="ESSAY">Essay</option>
               </select></div>
+          </div>
+          <div class="form-group" id="rating_labels">
+            <label class="col-sm-3">Rating Labels</label>
+            <div class="col-sm-9">
+              <?php for ($rating = 1; $rating <= 5; $rating++): ?>
+                <div class="input-group" style="margin-bottom:5px;">
+                  <span class="input-group-addon" style="min-width:95px;">Rating <?= $rating; ?></span>
+                  <input name="rating_label[]" class="form-control" placeholder="Description for <?= $rating; ?>">
+                </div>
+              <?php endfor; ?>
+            </div>
           </div>
           <div class="form-group"><label class="col-sm-3">Target Classes</label>
             <div class="col-sm-9"><label><input type="checkbox" name="target_all" id="target_all" value="Y"> All
@@ -202,8 +214,8 @@
           <div class="form-group" id="essay_limit"><label class="col-sm-3">Max Characters</label>
             <div class="col-sm-9"><input type="number" name="max_length" class="form-control"></div>
           </div>
-          <div class="form-group" id="radio_options">
-            <label class="col-sm-3">Radio Options</label>
+          <div class="form-group" id="choice_options">
+            <label class="col-sm-3" id="choice_options_label">Radio Options</label>
             <div class="col-sm-9">
               <div id="option_rows">
                 <div class="input-group" style="margin-bottom:5px;">
@@ -249,7 +261,9 @@
 
   function updateQuestionTypeFields() {
     var type = $('#question_type').val();
-    $('#radio_options').toggle(type === 'RADIO');
+    $('#choice_options').toggle(type === 'RADIO' || type === 'CHECKBOX');
+    $('#choice_options_label').text(type === 'CHECKBOX' ? 'Checkbox Options' : 'Radio Options');
+    $('#rating_labels').toggle(type === 'RATING');
     $('#essay_limit').toggle(type === 'ESSAY');
   }
 
@@ -267,7 +281,13 @@
     });
     $('#target_all').prop('checked', !(question.targets && question.targets.length));
     var optionHtml = '';
-    if (question.question_type === 'RADIO') {
+    if (question.question_type === 'RATING') {
+      $('#rating_labels input[name="rating_label[]"]').each(function (index) {
+        var option = (question.options || [])[index];
+        $(this).val(option ? option.option_label : '');
+      });
+    }
+    if (question.question_type === 'RADIO' || question.question_type === 'CHECKBOX') {
       $.each(question.options || [], function (_, option) {
         optionHtml +=
           '<div class="input-group" style="margin-bottom:5px;"><input name="option_label[]" class="form-control" value="' +

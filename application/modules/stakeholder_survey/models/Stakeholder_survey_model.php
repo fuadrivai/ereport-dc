@@ -21,7 +21,8 @@ class Stakeholder_survey_model extends CI_Model
             ->select('id_kelas')
             ->where('id_siswa', (int) $student_id)
             ->where('ta', (int) $year)
-            ->get('t_kelas_siswa')
+            ->order_by('id', 'DESC')
+            ->get('t_kelas_siswa_reguler')
             ->row_array();
 
         if (!$row) {
@@ -29,7 +30,8 @@ class Stakeholder_survey_model extends CI_Model
                 ->select('id_kelas')
                 ->where('id_siswa', (int) $student_id)
                 ->where('ta', (int) $year)
-                ->get('t_kelas_siswa_reguler')
+                ->order_by('id', 'DESC')
+                ->get('t_kelas_siswa')
                 ->row_array();
         }
 
@@ -55,7 +57,7 @@ class Stakeholder_survey_model extends CI_Model
         $questions = $this->db->get()->result_array();
 
         foreach ($questions as &$question) {
-            if ($question['question_type'] === 'RADIO') {
+            if (in_array($question['question_type'], array('RADIO', 'CHECKBOX', 'RATING'), true)) {
                 $question['options'] = $this->db
                     ->where('question_id', (int) $question['id'])
                     ->order_by('sort_order', 'ASC')
@@ -107,7 +109,12 @@ class Stakeholder_survey_model extends CI_Model
 
         foreach ($questions as $question) {
             $question_id = (int) $question['id'];
-            $value = isset($answers[$question_id]) ? trim($answers[$question_id]) : '';
+            $raw_value = isset($answers[$question_id]) ? $answers[$question_id] : '';
+            if (is_array($raw_value)) {
+                $value = implode(',', array_map('trim', $raw_value));
+            } else {
+                $value = trim((string) $raw_value);
+            }
 
             if ($question['is_required'] === 'Y' && $value === '') {
                 $errors[] = 'Required questions have not been answered.';
@@ -121,7 +128,7 @@ class Stakeholder_survey_model extends CI_Model
             if ($question['question_type'] === 'RATING') {
                 $rating = (int) $value;
                 if ($rating < 1 || $rating > 5) {
-                    $errors[] = 'Rating harus bernilai 1 sampai 5.';
+                    $errors[] = 'Rating must be between 1 and 5.';
                     continue;
                 }
                 $value = (string) $rating;
@@ -135,6 +142,24 @@ class Stakeholder_survey_model extends CI_Model
                     $errors[] = 'Invalid radio option.';
                     continue;
                 }
+            } elseif ($question['question_type'] === 'CHECKBOX') {
+                $selected_ids = array_filter(array_map('intval', explode(',', $value)));
+                if (empty($selected_ids)) {
+                    $errors[] = 'At least one checkbox option must be selected.';
+                    continue;
+                }
+                foreach ($selected_ids as $option_id) {
+                    $option = $this->db
+                        ->where('id', $option_id)
+                        ->where('question_id', $question_id)
+                        ->get('stakeholder_survey_question_options')
+                        ->row_array();
+                    if (!$option) {
+                        $errors[] = 'Invalid checkbox option.';
+                        break;
+                    }
+                }
+                $value = implode(',', array_unique($selected_ids));
             } elseif ($question['question_type'] === 'ESSAY') {
                 if (!empty($question['max_length']) && strlen($value) > (int) $question['max_length']) {
                     $errors[] = 'Essay answer exceeds the character limit.';
